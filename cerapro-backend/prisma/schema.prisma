@@ -1,0 +1,60 @@
+// CERAPRO Prisma Schema
+// Base actuelle stable : User + Notification opérationnels avec isolation par utilisateur
+// Prochaine extension : ajout progressif des entités SaaS CERAPRO sans casser l’existant
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum NotificationSource {
+  SYSTEM
+  ADMIN
+  ORDER
+  MINI_SITE_ORDER
+  SALE
+  PAYMENT
+  WALLET
+  WITHDRAWAL
+  SUBSCRIPTION
+  KYC
+  PRODUCT
+  CONTACT
+  ACTION
+  DEBT
+  ACCOUNTING
+  LONGRICH_MATIN
+  COACH
+  SECURITY
+}
+
+model User {
+  id            String   @id @default(uuid())
+  phone         String   @unique
+  firstName     String?
+  lastName      String?
+  email         String?
+  isKycVerified Boolean  @default(false)
+
+  notifications Notification[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Notification {
+  id        String             @id @default(uuid())
+  source    NotificationSource @default(SYSTEM)
+  title     String
+  message   String
+  time      String
+  read      Boolean            @default(false)
+
+  userId    String
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime           @default(now())
+}
