@@ -1,13 +1,28 @@
-// CERAPRO Prisma Schema
-// Base actuelle stable : User + Notification opérationnels avec isolation par utilisateur
-// Prochaine extension : ajout progressif des entités SaaS CERAPRO sans casser l’existant
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum UserRole {
+  LONGRICHEUR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum KycStatus {
+  NOT_STARTED
+  PENDING
+  APPROVED
+  REJECTED
 }
 
 enum NotificationSource {
@@ -31,18 +46,524 @@ enum NotificationSource {
   SECURITY
 }
 
+enum ContactType {
+  CONTACT
+  PROSPECT
+  CONSUMER
+  DOWNLINE
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum ActionType {
+  CALL
+  SMS
+  FOLLOW_UP
+  WHATSAPP
+  RELAUNCH
+  PRESENTATION
+  INVITATION
+}
+
+enum ActionStatus {
+  TODO
+  DONE
+  CANCELLED
+}
+
+enum ActionResult {
+  DISCOVERY
+  INTERESTED
+  TO_RELAUNCH
+  REFUSED
+  SALE_CLOSED
+}
+
+enum SaleStatus {
+  PENDING
+  SOLD
+  REFUSED
+}
+
+enum PaymentStatus {
+  CASH_PAID
+  PARTIALLY_PAID
+  CREDIT
+  UNPAID
+}
+
+enum DebtStatus {
+  ONGOING
+  PARTIALLY_PAID
+  PAID
+  DISPUTED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PAID
+  CANCELLED
+  DELIVERED
+}
+
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  DEBIT_PENDING
+  REFUND
+  ADJUSTMENT
+}
+
+enum WalletTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+  FAILED
+}
+
+enum WithdrawalMethod {
+  ORANGE_MONEY
+  MTN_MOMO
+}
+
+enum PaymentProvider {
+  MANUAL
+  MAVIANCE
+  ORANGE_MONEY
+  MTN_MOMO
+}
+
+enum PaymentTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
 model User {
-  id            String   @id @default(uuid())
-  phone         String   @unique
+  id            String     @id @default(uuid())
+  phone         String     @unique
   firstName     String?
   lastName      String?
   email         String?
-  isKycVerified Boolean  @default(false)
+  role          UserRole   @default(LONGRICHEUR)
+  status        UserStatus @default(ACTIVE)
+  isKycVerified Boolean    @default(false)
 
+  profile       UserProfile?
+  kycProfile    KycProfile?
+  wallet        Wallet?
+  miniSite      MiniSite?
+
+  contacts      Contact[]
+  actions       UserAction[]
+  sales         Sale[]
+  debts         Debt[]
+  orders        Order[]
+  payments      Payment[]
+  withdrawals   Withdrawal[]
   notifications Notification[]
+  walletTransactions WalletTransaction[]
+  auditLogs     AuditLog[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+model UserProfile {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  country             String?  @default("Cameroun")
+  city                String?
+  district            String?
+  placeName           String?
+  birthDate           DateTime?
+  birthPlace          String?
+  preferredWithdrawal WithdrawalMethod?
+  momoPhone           String?
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model KycProfile {
+  id          String    @id @default(uuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  status      KycStatus @default(NOT_STARTED)
+  selfieUrl   String?
+  cniFrontUrl String?
+  cniBackUrl  String?
+  submittedAt DateTime?
+  reviewedAt  DateTime?
+  reviewedBy  String?
+  rejectionReason String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+}
+
+model ProductCategory {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  slug      String    @unique
+  products  Product[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Product {
+  id                String   @id @default(uuid())
+  categoryId        String?
+  category          ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  name              String
+  slug              String   @unique
+  description       String?
+  imageUrl          String?
+  partnerPrice      Decimal  @default(0)
+  recommendedPrice  Decimal  @default(0)
+  pv                Int      @default(0)
+  referralCommission Decimal @default(0)
+  isActive          Boolean  @default(true)
+
+  saleItems         SaleItem[]
+  orderItems        OrderItem[]
+  debts             Debt[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([categoryId])
+}
+
+model Contact {
+  id        String        @id @default(uuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  fullName  String
+  phone     String?
+  type      ContactType   @default(CONTACT)
+  status    ContactStatus @default(ACTIVE)
+  notes     String?
+
+  actions   UserAction[]
+  sales     Sale[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+}
+
+model UserAction {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  contactId String?
+  contact   Contact?     @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  type      ActionType
+  status    ActionStatus @default(TODO)
+  result    ActionResult?
+  actionAt  DateTime
+  note      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([contactId])
+  @@index([status])
+  @@index([actionAt])
+}
+
+model Sale {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  contactId     String?
+  contact       Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  status        SaleStatus    @default(PENDING)
+  paymentStatus PaymentStatus @default(UNPAID)
+  totalAmount   Decimal       @default(0)
+  totalPv       Int           @default(0)
+  margin        Decimal       @default(0)
+  paidAmount    Decimal       @default(0)
+  remainingAmount Decimal     @default(0)
+  note          String?
+
+  items         SaleItem[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([contactId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  quantity  Int     @default(1)
+  unitPrice Decimal @default(0)
+  partnerPrice Decimal @default(0)
+  totalPrice Decimal @default(0)
+  pv        Int     @default(0)
+  margin    Decimal @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([saleId])
+  @@index([productId])
+}
+
+model Debt {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId   String?
+  product     Product?   @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  creditorName String
+  quantity    Int        @default(1)
+  amount      Decimal    @default(0)
+  paidAmount  Decimal    @default(0)
+  status      DebtStatus @default(ONGOING)
+  creditDate  DateTime
+  dueDate     DateTime?
+  note        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([productId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model MiniSite {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  slug        String   @unique
+  title       String?
+  bio         String?
+  isActive    Boolean  @default(true)
+
+  orders      Order[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model Customer {
+  id        String  @id @default(uuid())
+  fullName  String
+  phone     String?
+  email     String?
+  city      String?
+  country   String? @default("Cameroun")
+
+  orders    Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phone])
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  ownerUserId String
+  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  miniSiteId  String?
+  miniSite    MiniSite?   @relation(fields: [miniSiteId], references: [id], onDelete: SetNull)
+
+  customerId  String?
+  customer    Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal     @default(0)
+  totalPv     Int         @default(0)
+
+  items       OrderItem[]
+  payments    Payment[]
+  invoice     Invoice?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId])
+  @@index([miniSiteId])
+  @@index([customerId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  quantity  Int     @default(1)
+  unitPrice Decimal @default(0)
+  totalPrice Decimal @default(0)
+  pv        Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Payment {
+  id          String                   @id @default(uuid())
+  userId      String
+  user        User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orderId     String?
+  order       Order?                   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  provider    PaymentProvider          @default(MANUAL)
+  status      PaymentTransactionStatus @default(PENDING)
+  amount      Decimal                  @default(0)
+  reference   String?
+  rawPayload   Json?
+
+  walletTransactions WalletTransaction[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@index([reference])
+}
+
+model Wallet {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  availableBalance Decimal @default(0)
+  pendingBalance   Decimal @default(0)
+
+  transactions     WalletTransaction[]
+  withdrawals      Withdrawal[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model WalletTransaction {
+  id          String                  @id @default(uuid())
+  userId      String
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  walletId    String
+  wallet      Wallet                  @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  paymentId   String?
+  payment     Payment?                @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  type        WalletTransactionType
+  status      WalletTransactionStatus @default(PENDING)
+  amount      Decimal                 @default(0)
+  description String?
+  reference   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([paymentId])
+  @@index([type])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Withdrawal {
+  id          String           @id @default(uuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  walletId    String
+  wallet      Wallet           @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  method      WithdrawalMethod
+  phone       String
+  amount      Decimal          @default(0)
+  status      WithdrawalStatus @default(PENDING)
+  note        String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Invoice {
+  id        String   @id @default(uuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  number    String   @unique
+  pdfUrl    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([number])
 }
 
 model Notification {
@@ -57,4 +578,69 @@ model Notification {
   user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime           @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([source])
+  @@index([createdAt])
+}
+
+model LongrichMatinArticle {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  excerpt     String?
+  content     String
+  coverImage  String?
+  isPublished Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isPublished])
+  @@index([createdAt])
+}
+
+model CoachConversation {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String?
+
+  messages  CoachMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model CoachMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  conversation   CoachConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role           String
+  content        String
+
+  createdAt      DateTime @default(now())
+
+  @@index([conversationId])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action    String
+  entity    String?
+  entityId  String?
+  metadata  Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
 }
