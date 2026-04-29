@@ -80,6 +80,8 @@ export class ContactsService {
     const phone = payload.phone?.trim();
     const { firstName, lastName } = this.normalizeName(payload);
     const notes = payload.notes ?? payload.note ?? null;
+    const type = payload.type ?? 'CONTACT';
+    const status = payload.status ?? 'ACTIVE';
 
     if (!phone) {
       return {
@@ -110,16 +112,20 @@ export class ContactsService {
       };
     }
 
+    const createData = {
+      userId: user.id,
+      firstName,
+      lastName,
+      phone,
+      type,
+      status,
+      notes,
+    };
+
+    console.log('CREATE CONTACT DATA:', createData);
+
     const contact = await this.prisma.contact.create({
-      data: {
-        userId: user.id,
-        firstName,
-        lastName,
-        phone,
-        type: payload.type ?? 'CONTACT',
-        status: payload.status ?? 'ACTIVE',
-        notes,
-      } as any,
+      data: createData as any,
     });
 
     return {
