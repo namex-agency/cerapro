@@ -344,6 +344,7 @@ model SaleItem {
   quantity  Int     @default(1)
   unitPrice Decimal @default(0)
   partnerPrice Decimal @default(0)
+  recommendedPrice Decimal @default(0)
   totalPrice Decimal @default(0)
   pv        Int     @default(0)
   margin    Decimal @default(0)

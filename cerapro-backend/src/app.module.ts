@@ -11,6 +11,9 @@ import { ContactsService } from './contacts/contacts.service';
 import { ProductsController } from './products/products.controller';
 import { ProductsService } from './products/products.service';
 
+import { SalesController } from './sales/sales.controller';
+import { SalesService } from './sales/sales.service';
+
 @Module({
   imports: [],
   controllers: [
@@ -18,12 +21,14 @@ import { ProductsService } from './products/products.service';
     AdminController,
     ContactsController,
     ProductsController,
+    SalesController,
   ],
   providers: [
     AppService,
     AdminService,
     ContactsService,
     ProductsService,
+    SalesService,
   ],
 })
 export class AppModule {}
