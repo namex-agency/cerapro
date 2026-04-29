@@ -8,9 +8,22 @@ import { AdminService } from './admin/admin.service';
 import { ContactsController } from './contacts/contacts.controller';
 import { ContactsService } from './contacts/contacts.service';
 
+import { ProductsController } from './products/products.controller';
+import { ProductsService } from './products/products.service';
+
 @Module({
   imports: [],
-  controllers: [AppController, AdminController, ContactsController],
-  providers: [AppService, AdminService, ContactsService],
+  controllers: [
+    AppController,
+    AdminController,
+    ContactsController,
+    ProductsController,
+  ],
+  providers: [
+    AppService,
+    AdminService,
+    ContactsService,
+    ProductsService,
+  ],
 })
 export class AppModule {}
