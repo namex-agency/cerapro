@@ -199,6 +199,13 @@ export class SalesService {
       };
     }
 
+    if (sale.paymentStatus === 'CASH_PAID') {
+  return {
+    success: false,
+    message: 'Cette vente est déjà totalement payée.',
+  };
+}
+
     const totalAmount = Number(sale.totalAmount || 0);
     const currentPaidAmount = Number(sale.paidAmount || 0);
     const newPaidAmount = currentPaidAmount + amount;
