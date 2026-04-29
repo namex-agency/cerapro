@@ -1,14 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { PrismaPg } from '@prisma/adapter-pg';
+import { Pool } from 'pg';
 
 const DEFAULT_USER_PHONE = '+237600000000';
 
 @Injectable()
 export class AppService {
+  private prisma: PrismaClient;
+
+  constructor() {
+    const pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+    });
+
+    const adapter = new PrismaPg(pool);
+
+    this.prisma = new PrismaClient({
+      adapter,
+    });
+  }
+
   private async getDefaultUser() {
-    return prisma.user.upsert({
+    return this.prisma.user.upsert({
       where: { phone: DEFAULT_USER_PHONE },
       update: {},
       create: {
@@ -24,7 +38,7 @@ export class AppService {
   async getMe() {
     const user = await this.getDefaultUser();
 
-    const notificationsUnread = await prisma.notification.count({
+    const notificationsUnread = await this.prisma.notification.count({
       where: {
         userId: user.id,
         read: false,
@@ -50,7 +64,7 @@ export class AppService {
   async getNotifications() {
     const user = await this.getDefaultUser();
 
-    const existingNotifications = await prisma.notification.findMany({
+    const existingNotifications = await this.prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     });
@@ -59,7 +73,7 @@ export class AppService {
       return existingNotifications;
     }
 
-    await prisma.notification.createMany({
+    await this.prisma.notification.createMany({
       data: [
         {
           userId: user.id,
@@ -86,7 +100,7 @@ export class AppService {
       ],
     });
 
-    return prisma.notification.findMany({
+    return this.prisma.notification.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
     });
@@ -95,7 +109,7 @@ export class AppService {
   async markNotificationAsRead(id: string) {
     const user = await this.getDefaultUser();
 
-    const notification = await prisma.notification.findFirst({
+    const notification = await this.prisma.notification.findFirst({
       where: {
         id,
         userId: user.id,
@@ -109,7 +123,7 @@ export class AppService {
       };
     }
 
-    const updatedNotification = await prisma.notification.update({
+    const updatedNotification = await this.prisma.notification.update({
       where: { id: notification.id },
       data: { read: true },
     });
