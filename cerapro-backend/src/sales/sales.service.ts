@@ -15,6 +15,10 @@ type CreateSalePayload = {
   note?: string;
 };
 
+type UpdateSalePaymentPayload = {
+  amount: number;
+};
+
 @Injectable()
 export class SalesService {
   private prisma: PrismaClient;
@@ -171,6 +175,66 @@ export class SalesService {
     return {
       success: true,
       data: sale,
+    };
+  }
+
+  async updateSalePayment(id: string, payload: UpdateSalePaymentPayload) {
+    const amount = Number(payload.amount || 0);
+
+    if (amount <= 0) {
+      return {
+        success: false,
+        message: 'Le montant payé doit être supérieur à 0.',
+      };
+    }
+
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+    });
+
+    if (!sale) {
+      return {
+        success: false,
+        message: 'Vente introuvable.',
+      };
+    }
+
+    const totalAmount = Number(sale.totalAmount || 0);
+    const currentPaidAmount = Number(sale.paidAmount || 0);
+    const newPaidAmount = currentPaidAmount + amount;
+
+    if (newPaidAmount > totalAmount) {
+      return {
+        success: false,
+        message: 'Le montant payé dépasse le montant total de la vente.',
+      };
+    }
+
+    const remainingAmount = totalAmount - newPaidAmount;
+
+    const paymentStatus =
+      remainingAmount === 0 ? 'CASH_PAID' : 'PARTIALLY_PAID';
+
+    const updatedSale = await this.prisma.sale.update({
+      where: { id },
+      data: {
+        paidAmount: newPaidAmount,
+        remainingAmount,
+        paymentStatus,
+      },
+      include: {
+        contact: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      data: updatedSale,
     };
   }
 }
