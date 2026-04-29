@@ -104,13 +104,20 @@ export class SalesService {
         totalAmount,
         totalPv,
         margin: totalMargin,
+        paidAmount: 0,
+        remainingAmount: totalAmount,
         note: payload.note,
         items: {
           create: itemsData,
         },
       },
       include: {
-        items: true,
+        contact: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
       },
     });
 
@@ -138,6 +145,32 @@ export class SalesService {
     return {
       success: true,
       data: sales,
+    };
+  }
+
+  async getSaleById(id: string) {
+    const sale = await this.prisma.sale.findUnique({
+      where: { id },
+      include: {
+        contact: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
+    if (!sale) {
+      return {
+        success: false,
+        message: 'Vente introuvable',
+      };
+    }
+
+    return {
+      success: true,
+      data: sale,
     };
   }
 }
