@@ -56,29 +56,38 @@ export class ContactsService {
   private normalizeName(payload: Partial<CreateContactPayload>) {
     const firstName = payload.firstName?.trim() ?? '';
     const lastName = payload.lastName?.trim() ?? '';
-    const fullName = payload.fullName?.trim() ?? '';
+    const rawFullName = payload.fullName?.trim() ?? '';
 
     if (firstName || lastName) {
-      return { firstName, lastName };
+      return {
+        firstName,
+        lastName,
+        fullName: `${firstName} ${lastName}`.trim(),
+      };
     }
 
-    if (fullName) {
-      const parts = fullName.split(' ').filter(Boolean);
+    if (rawFullName) {
+      const parts = rawFullName.split(' ').filter(Boolean);
 
       return {
         firstName: parts[0] ?? '',
         lastName: parts.slice(1).join(' '),
+        fullName: rawFullName,
       };
     }
 
-    return { firstName: '', lastName: '' };
+    return {
+      firstName: '',
+      lastName: '',
+      fullName: '',
+    };
   }
 
   async createContact(payload: CreateContactPayload) {
     const user = await this.getDefaultUser();
 
     const phone = payload.phone?.trim();
-    const { firstName, lastName } = this.normalizeName(payload);
+    const { firstName, lastName, fullName } = this.normalizeName(payload);
     const notes = payload.notes ?? payload.note ?? null;
     const type = payload.type ?? 'CONTACT';
     const status = payload.status ?? 'ACTIVE';
@@ -90,7 +99,7 @@ export class ContactsService {
       };
     }
 
-    if (!firstName && !lastName) {
+    if (!fullName) {
       return {
         success: false,
         message: 'Le nom du contact est obligatoire.',
@@ -112,20 +121,17 @@ export class ContactsService {
       };
     }
 
-    const createData = {
-      userId: user.id,
-      firstName,
-      lastName,
-      phone,
-      type,
-      status,
-      notes,
-    };
-
-    console.log('CREATE CONTACT DATA:', createData);
-
     const contact = await this.prisma.contact.create({
-      data: createData as any,
+      data: {
+        userId: user.id,
+        firstName,
+        lastName,
+        fullName,
+        phone,
+        type,
+        status,
+        notes,
+      } as any,
     });
 
     return {
@@ -146,6 +152,7 @@ export class ContactsService {
               OR: [
                 { firstName: { contains: query, mode: 'insensitive' } },
                 { lastName: { contains: query, mode: 'insensitive' } },
+                { fullName: { contains: query, mode: 'insensitive' } },
                 { phone: { contains: query, mode: 'insensitive' } },
                 { notes: { contains: query, mode: 'insensitive' } },
               ],
@@ -223,6 +230,7 @@ export class ContactsService {
       data: {
         firstName: normalizedName.firstName,
         lastName: normalizedName.lastName,
+        fullName: normalizedName.fullName,
         phone: payload.phone?.trim() ?? contact.phone,
         type: payload.type ?? contact.type,
         status: payload.status ?? contact.status,
