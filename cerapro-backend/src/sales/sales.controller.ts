@@ -7,7 +7,8 @@ export class SalesController {
 
   @Post()
   async createSale(@Req() req: any, @Body() body: any) {
-    const userId = req.user?.id || 'demo-user-id';
+    const userId =
+  req.user?.id || body.userId || 'e7d8085e-f93c-41d7-81bd-377911aa6194';
 
     return this.salesService.createSale(userId, body);
   }
