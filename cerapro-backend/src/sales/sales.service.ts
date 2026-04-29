@@ -6,7 +6,7 @@ import { Pool } from 'pg';
 type CreateSaleItemInput = {
   productId: string;
   quantity: number;
-  unitPrice?: number; // prix personnalisé
+  unitPrice?: number;
 };
 
 type CreateSalePayload = {
@@ -68,9 +68,8 @@ export class SalesService {
       const recommendedPrice = Number(product.recommendedPrice || 0);
       const pv = Number(product.pv || 0);
 
-      let unitPrice = item.unitPrice ?? recommendedPrice;
+      const unitPrice = item.unitPrice ?? recommendedPrice;
 
-      // Règle métier : prix minimum
       if (unitPrice < partnerPrice) {
         return {
           success: false,
@@ -118,6 +117,27 @@ export class SalesService {
     return {
       success: true,
       data: sale,
+    };
+  }
+
+  async getAllSales() {
+    const sales = await this.prisma.sale.findMany({
+      include: {
+        contact: true,
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return {
+      success: true,
+      data: sales,
     };
   }
 }
