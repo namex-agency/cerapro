@@ -53,41 +53,23 @@ export class ContactsService {
     });
   }
 
-  private normalizeName(payload: Partial<CreateContactPayload>) {
+  private buildFullName(payload: Partial<CreateContactPayload>) {
     const firstName = payload.firstName?.trim() ?? '';
     const lastName = payload.lastName?.trim() ?? '';
-    const rawFullName = payload.fullName?.trim() ?? '';
+    const fullName = payload.fullName?.trim() ?? '';
 
-    if (firstName || lastName) {
-      return {
-        firstName,
-        lastName,
-        fullName: `${firstName} ${lastName}`.trim(),
-      };
+    if (fullName) {
+      return fullName;
     }
 
-    if (rawFullName) {
-      const parts = rawFullName.split(' ').filter(Boolean);
-
-      return {
-        firstName: parts[0] ?? '',
-        lastName: parts.slice(1).join(' '),
-        fullName: rawFullName,
-      };
-    }
-
-    return {
-      firstName: '',
-      lastName: '',
-      fullName: '',
-    };
+    return `${firstName} ${lastName}`.trim();
   }
 
   async createContact(payload: CreateContactPayload) {
     const user = await this.getDefaultUser();
 
     const phone = payload.phone?.trim();
-    const { firstName, lastName, fullName } = this.normalizeName(payload);
+    const fullName = this.buildFullName(payload);
     const notes = payload.notes ?? payload.note ?? null;
     const type = payload.type ?? 'CONTACT';
     const status = payload.status ?? 'ACTIVE';
@@ -124,8 +106,6 @@ export class ContactsService {
     const contact = await this.prisma.contact.create({
       data: {
         userId: user.id,
-        firstName,
-        lastName,
         fullName,
         phone,
         type,
@@ -150,8 +130,6 @@ export class ContactsService {
         ...(query
           ? {
               OR: [
-                { firstName: { contains: query, mode: 'insensitive' } },
-                { lastName: { contains: query, mode: 'insensitive' } },
                 { fullName: { contains: query, mode: 'insensitive' } },
                 { phone: { contains: query, mode: 'insensitive' } },
                 { notes: { contains: query, mode: 'insensitive' } },
@@ -217,10 +195,10 @@ export class ContactsService {
       };
     }
 
-    const normalizedName = this.normalizeName({
-      firstName: payload.firstName ?? contact.firstName ?? '',
-      lastName: payload.lastName ?? contact.lastName ?? '',
-      fullName: payload.fullName,
+    const fullName = this.buildFullName({
+      firstName: payload.firstName,
+      lastName: payload.lastName,
+      fullName: payload.fullName ?? contact.fullName,
     });
 
     const updatedContact = await this.prisma.contact.update({
@@ -228,9 +206,7 @@ export class ContactsService {
         id: contact.id,
       },
       data: {
-        firstName: normalizedName.firstName,
-        lastName: normalizedName.lastName,
-        fullName: normalizedName.fullName,
+        fullName,
         phone: payload.phone?.trim() ?? contact.phone,
         type: payload.type ?? contact.type,
         status: payload.status ?? contact.status,
