@@ -3,6 +3,18 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
 
+type CreateProductPayload = {
+  name: string;
+  slug?: string;
+  description?: string;
+  imageUrl?: string;
+  partnerPrice?: number;
+  recommendedPrice?: number;
+  pv?: number;
+  referralCommission?: number;
+  isActive?: boolean;
+};
+
 @Injectable()
 export class ProductsService {
   private prisma: PrismaClient;
@@ -17,6 +29,62 @@ export class ProductsService {
     this.prisma = new PrismaClient({
       adapter,
     });
+  }
+
+  private buildSlug(value: string) {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  async createProduct(payload: CreateProductPayload) {
+    const name = payload.name?.trim();
+
+    if (!name) {
+      return {
+        success: false,
+        message: 'Le nom du produit est obligatoire.',
+      };
+    }
+
+    const slug = payload.slug?.trim() || this.buildSlug(name);
+
+    const existingProduct = await this.prisma.product.findFirst({
+      where: {
+        slug,
+      },
+    });
+
+    if (existingProduct) {
+      return {
+        success: false,
+        message: 'Un produit avec ce slug existe déjà.',
+        product: existingProduct,
+      };
+    }
+
+    const product = await this.prisma.product.create({
+      data: {
+        name,
+        slug,
+        description: payload.description?.trim() ?? null,
+        imageUrl: payload.imageUrl?.trim() ?? null,
+        partnerPrice: payload.partnerPrice ?? 0,
+        recommendedPrice: payload.recommendedPrice ?? 0,
+        pv: payload.pv ?? 0,
+        referralCommission: payload.referralCommission ?? 0,
+        isActive: payload.isActive ?? true,
+      } as any,
+    });
+
+    return {
+      success: true,
+      product,
+    };
   }
 
   async getProducts(search?: string) {
