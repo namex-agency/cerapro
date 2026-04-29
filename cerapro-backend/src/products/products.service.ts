@@ -63,7 +63,7 @@ export class ProductsService {
       return {
         success: false,
         message: 'Un produit avec ce slug existe déjà.',
-        product: existingProduct,
+        data: existingProduct,
       };
     }
 
@@ -83,7 +83,7 @@ export class ProductsService {
 
     return {
       success: true,
-      product,
+      data: product,
     };
   }
 
@@ -122,7 +122,7 @@ export class ProductsService {
 
     return {
       success: true,
-      products,
+      data: products,
     };
   }
 
@@ -146,7 +146,7 @@ export class ProductsService {
 
     return {
       success: true,
-      product,
+      data: product,
     };
   }
 }
