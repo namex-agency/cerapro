@@ -5,6 +5,16 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
+  // ROUTE RACINE (AJOUTÉE)
+  @Get()
+  root() {
+    return {
+      message: 'CERAPRO API is running',
+      status: 'OK'
+    };
+  }
+
+  // TES ROUTES EXISTANTES (INCHANGÉES)
   @Get('me')
   getMe() {
     return this.appService.getMe();
