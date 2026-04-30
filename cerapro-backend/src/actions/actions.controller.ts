@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, Query } from '@nestjs/common';
 import { ActionsService } from './actions.service';
 
 @Controller('actions')
@@ -21,10 +21,14 @@ export class ActionsController {
   }
 
   @Get()
-  async getActions(@Req() req: any, @Body() body: any) {
+  async getActions(
+    @Req() req: any,
+    @Body() body: any,
+    @Query() query: any,
+  ) {
     const userId = this.getUserId(req, body);
 
-    return this.actionsService.getActions(userId);
+    return this.actionsService.getActions(userId, query);
   }
 
   @Get(':id')
