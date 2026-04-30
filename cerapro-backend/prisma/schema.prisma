@@ -283,6 +283,7 @@ model Contact {
 
 model UserAction {
   id        String       @id @default(uuid())
+
   userId    String
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -292,7 +293,10 @@ model UserAction {
   type      ActionType
   status    ActionStatus @default(TODO)
   result    ActionResult?
+
   actionAt  DateTime
+  priority  Int          @default(0)
+  reminderAt DateTime?
   note      String?
 
   createdAt DateTime @default(now())
@@ -301,7 +305,10 @@ model UserAction {
   @@index([userId])
   @@index([contactId])
   @@index([status])
+  @@index([result])
+  @@index([priority])
   @@index([actionAt])
+  @@index([reminderAt])
 }
 
 model Sale {
