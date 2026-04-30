@@ -26,6 +26,9 @@ import { AccountingService } from './accounting/accounting.service';
 import { LongrichMatinController } from './longrich-matin/longrich-matin.controller';
 import { LongrichMatinService } from './longrich-matin/longrich-matin.service';
 
+import { CloudinaryController } from './cloudinary/cloudinary.controller';
+import { CloudinaryService } from './cloudinary/cloudinary.service';
+
 @Module({
   imports: [],
   controllers: [
@@ -38,6 +41,7 @@ import { LongrichMatinService } from './longrich-matin/longrich-matin.service';
     DebtsController,
     AccountingController,
     LongrichMatinController,
+    CloudinaryController,
   ],
   providers: [
     AppService,
@@ -49,6 +53,7 @@ import { LongrichMatinService } from './longrich-matin/longrich-matin.service';
     DebtsService,
     AccountingService,
     LongrichMatinService,
+    CloudinaryService,
   ],
 })
 export class AppModule {}
