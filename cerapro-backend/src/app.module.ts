@@ -20,6 +20,9 @@ import { ActionsService } from './actions/actions.service';
 import { DebtsController } from './debts/debts.controller';
 import { DebtsService } from './debts/debts.service';
 
+import { AccountingController } from './accounting/accounting.controller';
+import { AccountingService } from './accounting/accounting.service';
+
 @Module({
   imports: [],
   controllers: [
@@ -30,6 +33,7 @@ import { DebtsService } from './debts/debts.service';
     SalesController,
     ActionsController,
     DebtsController,
+    AccountingController,
   ],
   providers: [
     AppService,
@@ -39,6 +43,7 @@ import { DebtsService } from './debts/debts.service';
     SalesService,
     ActionsService,
     DebtsService,
+    AccountingService,
   ],
 })
 export class AppModule {}
