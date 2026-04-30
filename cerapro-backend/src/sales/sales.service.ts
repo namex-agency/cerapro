@@ -131,13 +131,15 @@ export class SalesService {
       });
     }
 
-    const sale = await this.prisma.sale.create({
-      data: {
-        userId,
-        contactId: payload.contactId || null,
-        status: 'PENDING',
-        paymentStatus: 'UNPAID',
-        totalAmount,
+    const paymentStatus = totalAmount === 0 ? 'CASH_PAID' : 'UNPAID';
+
+const sale = await this.prisma.sale.create({
+  data: {
+    userId,
+    contactId: payload.contactId || null,
+    status: 'PENDING',
+    paymentStatus,
+    totalAmount,
         totalPv,
         margin: totalMargin,
         paidAmount: 0,
