@@ -30,70 +30,7 @@ export class AccountingService {
   }
 
   private isPaidSale(sale: any): boolean {
-    return (
-      sale.paymentStatus === 'PAID' ||
-      sale.paymentStatus === 'PAYE_COMPTANT' ||
-      sale.paymentStatus === 'PAID_CASH' ||
-      sale.status === 'PAID' ||
-      sale.status === 'SOLD'
-    );
-  }
-
-  private isPartiallyPaidSale(sale: any): boolean {
-    return (
-      sale.paymentStatus === 'PARTIALLY_PAID' ||
-      sale.paymentStatus === 'PAYE_PARTIELLEMENT' ||
-      sale.status === 'PARTIALLY_PAID'
-    );
-  }
-
-  private getSaleTotalAmount(sale: any): number {
-    return this.toNumber(
-      sale.totalAmount ??
-        sale.amount ??
-        sale.total ??
-        sale.priceTotal ??
-        sale.finalAmount ??
-        sale.totalPrice,
-    );
-  }
-
-  private getSalePaidAmount(sale: any): number {
-    if (this.isPaidSale(sale)) {
-      return this.getSaleTotalAmount(sale);
-    }
-
-    if (this.isPartiallyPaidSale(sale)) {
-      return this.toNumber(
-        sale.paidAmount ??
-          sale.amountPaid ??
-          sale.receivedAmount ??
-          sale.paid,
-      );
-    }
-
-    return this.toNumber(
-      sale.paidAmount ??
-        sale.amountPaid ??
-        sale.receivedAmount ??
-        sale.paid,
-    );
-  }
-
-  private getPartnerCost(sale: any, productById: Map<string, any>): number {
-    const quantity = this.toNumber(sale.quantity || 1);
-
-    const productId = sale.productId;
-    const product = productId ? productById.get(productId) : null;
-
-    const partnerUnitPrice = this.toNumber(
-      sale.partnerPrice ??
-        sale.costPrice ??
-        sale.partnerUnitPrice ??
-        product?.partnerPrice,
-    );
-
-    return partnerUnitPrice * quantity;
+    return sale.paymentStatus === 'CASH_PAID';
   }
 
   async getFinancialSummary(userId: string) {
@@ -108,29 +45,15 @@ export class AccountingService {
       where: {
         userId,
       },
-    });
-
-    const productIds = [
-      ...new Set(
-        (sales as any[])
-          .map((sale) => sale.productId)
-          .filter((productId) => Boolean(productId)),
-      ),
-    ];
-
-    const products = productIds.length
-      ? await this.prisma.product.findMany({
-          where: {
-            id: {
-              in: productIds,
-            },
+      include: {
+        items: {
+          include: {
+            product: true,
           },
-        })
-      : [];
-
-    const productById = new Map(
-      (products as any[]).map((product) => [product.id, product]),
-    );
+        },
+        payments: true,
+      },
+    });
 
     const debts = await this.prisma.debt.findMany({
       where: {
@@ -144,14 +67,31 @@ export class AccountingService {
     let totalDettesFournisseur = 0;
     let coutPartenaire = 0;
     let margeBrute = 0;
-    let commissionEstimee = 0;
+    const commissionEstimee = 0;
     let totalCreditClient = 0;
 
     for (const sale of sales as any[]) {
-      const totalAmount = this.getSaleTotalAmount(sale);
-      const paidAmount = Math.min(this.getSalePaidAmount(sale), totalAmount);
+      const totalAmount = this.toNumber(sale.totalAmount);
+      const paidAmount = Math.min(this.toNumber(sale.paidAmount), totalAmount);
       const remainingAmount = Math.max(0, totalAmount - paidAmount);
-      const partnerCost = this.getPartnerCost(sale, productById);
+
+      const salePartnerCost = (sale.items || []).reduce(
+        (sum: number, item: any) => {
+          const itemPartnerPrice = this.toNumber(
+            item.partnerPrice ?? item.product?.partnerPrice,
+          );
+
+          const quantity = this.toNumber(item.quantity || 1);
+
+          return sum + itemPartnerPrice * quantity;
+        },
+        0,
+      );
+
+      const saleMargin = (sale.items || []).reduce(
+        (sum: number, item: any) => sum + this.toNumber(item.margin),
+        0,
+      );
 
       if (this.isPaidSale(sale)) {
         chiffreAffaires += totalAmount;
@@ -159,8 +99,8 @@ export class AccountingService {
 
       totalEncaisse += paidAmount;
       totalARecevoir += remainingAmount;
-      coutPartenaire += partnerCost;
-      margeBrute += totalAmount - partnerCost;
+      coutPartenaire += salePartnerCost;
+      margeBrute += saleMargin;
 
       if (remainingAmount > 0) {
         totalCreditClient += remainingAmount;
