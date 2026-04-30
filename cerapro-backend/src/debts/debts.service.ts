@@ -185,9 +185,17 @@ export class DebtsService {
       ],
     });
 
+     const enrichedDebts = debts.map((debt: any) => ({
+      ...debt,
+      remainingAmount: Math.max(
+        0,
+        Number(debt.amount || 0) - Number(debt.paidAmount || 0),
+      ),
+    }));
+
     return {
       success: true,
-      data: debts,
+      data: enrichedDebts,
     };
   }
 }
