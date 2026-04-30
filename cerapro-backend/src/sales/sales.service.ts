@@ -10,7 +10,7 @@ type CreateSaleItemInput = {
 };
 
 type CreateSalePayload = {
-  contactId?: string;
+  contactId?: string | null;
   items: CreateSaleItemInput[];
   note?: string;
 };
@@ -37,7 +37,24 @@ export class SalesService {
     });
   }
 
+  private toNumber(value: any): number {
+    if (value === null || value === undefined) return 0;
+
+    const numberValue = Number(value);
+
+    if (Number.isNaN(numberValue)) return 0;
+
+    return numberValue;
+  }
+
   async createSale(userId: string, payload: CreateSalePayload) {
+    if (!userId) {
+      return {
+        success: false,
+        message: 'Utilisateur obligatoire.',
+      };
+    }
+
     if (!payload.items || payload.items.length === 0) {
       return {
         success: false,
@@ -52,7 +69,16 @@ export class SalesService {
     const itemsData: any[] = [];
 
     for (const item of payload.items) {
-      if (item.quantity < 1) {
+      if (!item.productId) {
+        return {
+          success: false,
+          message: 'Produit obligatoire dans la vente.',
+        };
+      }
+
+      const quantity = this.toNumber(item.quantity);
+
+      if (quantity < 1) {
         return {
           success: false,
           message: 'La quantité doit être au moins 1.',
@@ -70,11 +96,13 @@ export class SalesService {
         };
       }
 
-      const partnerPrice = Number(product.partnerPrice || 0);
-      const recommendedPrice = Number(product.recommendedPrice || 0);
-      const pv = Number(product.pv || 0);
+      const partnerPrice = this.toNumber(product.partnerPrice);
+      const recommendedPrice = this.toNumber(product.recommendedPrice);
+      const pv = this.toNumber(product.pv);
 
-      const unitPrice = item.unitPrice ?? recommendedPrice;
+      const unitPrice = item.unitPrice
+        ? this.toNumber(item.unitPrice)
+        : recommendedPrice;
 
       if (unitPrice < partnerPrice) {
         return {
@@ -83,9 +111,9 @@ export class SalesService {
         };
       }
 
-      const totalPrice = unitPrice * item.quantity;
-      const itemPv = pv * item.quantity;
-      const margin = (unitPrice - partnerPrice) * item.quantity;
+      const totalPrice = unitPrice * quantity;
+      const itemPv = pv * quantity;
+      const margin = (unitPrice - partnerPrice) * quantity;
 
       totalAmount += totalPrice;
       totalPv += itemPv;
@@ -93,7 +121,7 @@ export class SalesService {
 
       itemsData.push({
         productId: product.id,
-        quantity: item.quantity,
+        quantity,
         unitPrice,
         partnerPrice,
         recommendedPrice,
@@ -106,13 +134,15 @@ export class SalesService {
     const sale = await this.prisma.sale.create({
       data: {
         userId,
-        contactId: payload.contactId,
+        contactId: payload.contactId || null,
+        status: 'PENDING',
+        paymentStatus: 'UNPAID',
         totalAmount,
         totalPv,
         margin: totalMargin,
         paidAmount: 0,
         remainingAmount: totalAmount,
-        note: payload.note,
+        note: payload.note?.trim() || null,
         items: {
           create: itemsData,
         },
@@ -173,7 +203,7 @@ export class SalesService {
     if (!sale) {
       return {
         success: false,
-        message: 'Vente introuvable',
+        message: 'Vente introuvable.',
       };
     }
 
@@ -184,7 +214,7 @@ export class SalesService {
   }
 
   async updateSalePayment(id: string, payload: UpdateSalePaymentPayload) {
-    const amount = Number(payload.amount || 0);
+    const amount = this.toNumber(payload.amount);
 
     if (amount <= 0) {
       return {
@@ -204,15 +234,17 @@ export class SalesService {
       };
     }
 
-    if (sale.paymentStatus === 'CASH_PAID') {
+    const totalAmount = this.toNumber(sale.totalAmount);
+    const currentPaidAmount = this.toNumber(sale.paidAmount);
+    const currentRemainingAmount = Math.max(0, totalAmount - currentPaidAmount);
+
+    if (currentRemainingAmount <= 0 || sale.paymentStatus === 'CASH_PAID') {
       return {
         success: false,
         message: 'Cette vente est déjà totalement payée.',
       };
     }
 
-    const totalAmount = Number(sale.totalAmount || 0);
-    const currentPaidAmount = Number(sale.paidAmount || 0);
     const newPaidAmount = currentPaidAmount + amount;
 
     if (newPaidAmount > totalAmount) {
@@ -222,7 +254,7 @@ export class SalesService {
       };
     }
 
-    const remainingAmount = totalAmount - newPaidAmount;
+    const remainingAmount = Math.max(0, totalAmount - newPaidAmount);
 
     const paymentStatus =
       remainingAmount === 0 ? 'CASH_PAID' : 'PARTIALLY_PAID';
@@ -236,7 +268,7 @@ export class SalesService {
         payments: {
           create: {
             amount,
-            method: payload.method || 'CASH',
+            method: payload.method?.trim() || 'CASH',
             note: payload.note?.trim() || null,
           },
         },
