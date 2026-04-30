@@ -136,68 +136,79 @@ export class ActionsService {
     };
   }
 
-  async getActions(userId: string, filters?: any) {
-  const where: any = {
-    userId,
-  };
+   async getActions(userId: string, filters?: any) {
+    const now = new Date();
 
-  if (filters?.status) {
-    where.status = filters.status;
-  }
+    const where: any = {
+      userId,
+    };
 
-  if (filters?.type) {
-    where.type = filters.type;
-  }
+    if (filters?.status) {
+      where.status = filters.status;
+    }
 
-  if (filters?.result) {
-    where.result = filters.result;
-  }
+    if (filters?.type) {
+      where.type = filters.type;
+    }
 
-  if (filters?.contactId) {
-    where.contactId = filters.contactId;
-  }
+    if (filters?.result) {
+      where.result = filters.result;
+    }
 
-  if (filters?.reminderOnly === true || filters?.reminderOnly === 'true') {
-    where.reminderAt = {
-      not: null,
+    if (filters?.contactId) {
+      where.contactId = filters.contactId;
+    }
+
+    if (filters?.reminderOnly === true || filters?.reminderOnly === 'true') {
+      where.reminderAt = {
+        not: null,
+      };
+    }
+
+    if (filters?.overdue === true || filters?.overdue === 'true') {
+      where.reminderAt = {
+        not: null,
+        lt: now,
+      };
+
+      where.status = 'TODO';
+    }
+
+    if (filters?.from || filters?.to) {
+      where.actionAt = {};
+
+      if (filters.from) {
+        where.actionAt.gte = new Date(filters.from);
+      }
+
+      if (filters.to) {
+        where.actionAt.lte = new Date(filters.to);
+      }
+    }
+
+    const actions = await this.prisma.userAction.findMany({
+      where,
+      include: {
+        contact: true,
+      },
+      orderBy: [
+        {
+          priority: 'desc',
+        },
+        {
+          reminderAt: 'asc',
+        },
+        {
+          actionAt: 'asc',
+        },
+      ],
+    });
+
+    return {
+      success: true,
+      data: actions,
     };
   }
-
-  if (filters?.from || filters?.to) {
-    where.actionAt = {};
-
-    if (filters.from) {
-      where.actionAt.gte = new Date(filters.from);
-    }
-
-    if (filters.to) {
-      where.actionAt.lte = new Date(filters.to);
-    }
-  }
-
-  const actions = await this.prisma.userAction.findMany({
-    where,
-    include: {
-      contact: true,
-    },
-    orderBy: [
-      {
-        priority: 'desc',
-      },
-      {
-        reminderAt: 'asc',
-      },
-      {
-        actionAt: 'asc',
-      },
-    ],
-  });
-
-  return {
-    success: true,
-    data: actions,
-  };
-}
 
   async getActionById(userId: string, id: string) {
     const action = await this.prisma.userAction.findFirst({
