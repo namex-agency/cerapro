@@ -193,4 +193,37 @@ export class LongrichMatinService {
       data: updatedArticle,
     };
   }
+
+  async deleteArticle(id: string) {
+    if (!id?.trim()) {
+      return {
+        success: false,
+        message: 'Identifiant article obligatoire.',
+      };
+    }
+
+    const article = await this.prisma.longrichMatinArticle.findUnique({
+      where: {
+        id,
+      },
+    });
+
+    if (!article) {
+      return {
+        success: false,
+        message: 'Article introuvable.',
+      };
+    }
+
+    await this.prisma.longrichMatinArticle.delete({
+      where: {
+        id,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Article supprimé avec succès.',
+    };
+  }
 }
