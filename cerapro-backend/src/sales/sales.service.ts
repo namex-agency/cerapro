@@ -17,6 +17,8 @@ type CreateSalePayload = {
 
 type UpdateSalePaymentPayload = {
   amount: number;
+  method?: string;
+  note?: string;
 };
 
 @Injectable()
@@ -122,6 +124,7 @@ export class SalesService {
             product: true,
           },
         },
+        payments: true,
       },
     });
 
@@ -140,6 +143,7 @@ export class SalesService {
             product: true,
           },
         },
+        payments: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -162,6 +166,7 @@ export class SalesService {
             product: true,
           },
         },
+        payments: true,
       },
     });
 
@@ -200,11 +205,11 @@ export class SalesService {
     }
 
     if (sale.paymentStatus === 'CASH_PAID') {
-  return {
-    success: false,
-    message: 'Cette vente est déjà totalement payée.',
-  };
-}
+      return {
+        success: false,
+        message: 'Cette vente est déjà totalement payée.',
+      };
+    }
 
     const totalAmount = Number(sale.totalAmount || 0);
     const currentPaidAmount = Number(sale.paidAmount || 0);
@@ -228,6 +233,13 @@ export class SalesService {
         paidAmount: newPaidAmount,
         remainingAmount,
         paymentStatus,
+        payments: {
+          create: {
+            amount,
+            method: payload.method || 'CASH',
+            note: payload.note?.trim() || null,
+          },
+        },
       },
       include: {
         contact: true,
@@ -236,6 +248,7 @@ export class SalesService {
             product: true,
           },
         },
+        payments: true,
       },
     });
 
