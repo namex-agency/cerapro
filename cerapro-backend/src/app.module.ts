@@ -17,6 +17,9 @@ import { SalesService } from './sales/sales.service';
 import { ActionsController } from './actions/actions.controller';
 import { ActionsService } from './actions/actions.service';
 
+import { DebtsController } from './debts/debts.controller';
+import { DebtsService } from './debts/debts.service';
+
 @Module({
   imports: [],
   controllers: [
@@ -26,6 +29,7 @@ import { ActionsService } from './actions/actions.service';
     ProductsController,
     SalesController,
     ActionsController,
+    DebtsController,
   ],
   providers: [
     AppService,
@@ -34,6 +38,7 @@ import { ActionsService } from './actions/actions.service';
     ProductsService,
     SalesService,
     ActionsService,
+    DebtsService,
   ],
 })
 export class AppModule {}
