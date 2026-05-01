@@ -18,10 +18,10 @@ export class MiniSiteController {
   }
 
   // 🔹 Produits publics (catalogue)
-  @Get(':slug/products')
-  async getMiniSiteProducts(@Param('slug') slug: string) {
-    return this.miniSiteService.getPublicProducts();
-  }
+ @Get(':slug/products')
+async getMiniSiteProducts(@Param('slug') slug: string) {
+  return this.miniSiteService.getPublicProducts(slug);
+}
 
   // 🔹 Mettre à jour le mini-site (propriétaire)
   @Patch(':userId')

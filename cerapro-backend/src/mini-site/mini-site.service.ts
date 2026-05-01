@@ -68,6 +68,25 @@ export class MiniSiteService {
       .replace(/^-+|-+$/g, '');
   }
 
+  private formatMoney(value: any): number {
+    return this.toNumber(value);
+  }
+
+  private formatPublicProduct(product: any) {
+    return {
+      id: product.id,
+      categoryId: product.categoryId,
+      categoryName: product.category?.name ?? 'Autres produits',
+      categorySlug: product.category?.slug ?? 'autres-produits',
+      name: product.name,
+      slug: product.slug,
+      description: product.description ?? '',
+      imageUrl: product.imageUrl ?? null,
+      price: this.formatMoney(product.recommendedPrice),
+      isActive: product.isActive,
+    };
+  }
+
   async createMiniSite(payload: CreateMiniSitePayload) {
     if (!payload.userId?.trim()) {
       return {
@@ -229,23 +248,117 @@ export class MiniSiteService {
     };
   }
 
-  async getPublicProducts() {
-    const products = await this.prisma.product.findMany({
+  async getPublicProducts(slug?: string) {
+    if (!slug?.trim()) {
+      return {
+        success: false,
+        message: 'Slug mini-site obligatoire.',
+      };
+    }
+
+    const miniSite = await this.prisma.miniSite.findUnique({
+      where: {
+        slug: this.normalizeSlug(slug),
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            phone: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    if (!miniSite || !miniSite.isActive) {
+      return {
+        success: false,
+        message: 'Mini-site introuvable ou inactif.',
+      };
+    }
+
+    const categories = await this.prisma.productCategory.findMany({
+      include: {
+        products: {
+          where: {
+            isActive: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
+
+    const formattedCategories = categories
+      .map((category) => {
+        const products = category.products.map((product) =>
+          this.formatPublicProduct({
+            ...product,
+            category,
+          }),
+        );
+
+        return {
+          id: category.id,
+          name: category.name,
+          slug: category.slug,
+          products,
+        };
+      })
+      .filter((category) => category.products.length > 0);
+
+    const uncategorizedProducts = await this.prisma.product.findMany({
       where: {
         isActive: true,
+        categoryId: null,
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
+    if (uncategorizedProducts.length > 0) {
+      formattedCategories.push({
+        id: 'uncategorized',
+        name: 'Autres produits',
+        slug: 'autres-produits',
+        products: uncategorizedProducts.map((product) =>
+          this.formatPublicProduct(product),
+        ),
+      });
+    }
+
+    const allProducts = formattedCategories.flatMap(
+      (category) => category.products,
+    );
+
     return {
       success: true,
-      data: products,
+      data: {
+        miniSite: {
+          id: miniSite.id,
+          slug: miniSite.slug,
+          title: miniSite.title,
+          bio: miniSite.bio,
+          owner: miniSite.user,
+        },
+        categories: formattedCategories,
+        products: allProducts,
+      },
     };
   }
 
-  async createOrderFromMiniSite(slug: string, payload: CreateMiniSiteOrderPayload) {
+  async createOrderFromMiniSite(
+    slug: string,
+    payload: CreateMiniSiteOrderPayload,
+  ) {
     if (!slug?.trim()) {
       return {
         success: false,
