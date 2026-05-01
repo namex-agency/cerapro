@@ -152,6 +152,33 @@ enum PaymentTransactionStatus {
   CANCELLED
 }
 
+enum SubscriptionPlan {
+  TRIAL
+  MONTHLY
+  YEARLY
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  PAYMENT_PENDING
+}
+
+enum SubscriptionPaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+}
+
+enum OtpPurpose {
+  REGISTER
+  LOGIN
+  PASSWORD_RESET
+}
+
 model User {
   id            String     @id @default(uuid())
   phone         String     @unique
@@ -166,6 +193,8 @@ model User {
   kycProfile    KycProfile?
   wallet        Wallet?
   miniSite      MiniSite?
+  subscriptions Subscription[]
+  otpCodes      OtpCode[]
 
   contacts      Contact[]
   actions       UserAction[]
@@ -667,4 +696,62 @@ model AuditLog {
   @@index([action])
   @@index([entity])
   @@index([createdAt])
+}
+
+model Subscription {
+  id              String   @id @default(uuid())
+
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  plan            SubscriptionPlan
+  status          SubscriptionStatus @default(PAYMENT_PENDING)
+
+  amount          Decimal  @default(0)
+  currency        String   @default("FCFA")
+
+  startsAt        DateTime?
+  endsAt          DateTime?
+  trialEndsAt     DateTime?
+
+  paymentProvider PaymentProvider?
+  paymentStatus   SubscriptionPaymentStatus @default(PENDING)
+  paymentReference String?
+  rawPaymentPayload Json?
+
+  isCurrent       Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([plan])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([isCurrent])
+  @@index([startsAt])
+  @@index([endsAt])
+}
+
+model OtpCode {
+  id          String     @id @default(uuid())
+
+  userId      String?
+  user        User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  phone       String
+  codeHash    String
+  purpose     OtpPurpose
+
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  attempts    Int        @default(0)
+
+  createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@index([phone])
+  @@index([purpose])
+  @@index([expiresAt])
+  @@index([consumedAt])
 }
