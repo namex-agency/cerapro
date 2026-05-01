@@ -32,8 +32,10 @@ import { CloudinaryService } from './cloudinary/cloudinary.service';
 import { MiniSiteController } from './mini-site/mini-site.controller';
 import { MiniSiteService } from './mini-site/mini-site.service';
 
+import { AuthModule } from './auth/auth.module';
+
 @Module({
-  imports: [],
+  imports: [AuthModule],
   controllers: [
     AppController,
     AdminController,
