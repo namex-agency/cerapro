@@ -182,6 +182,9 @@ enum OtpPurpose {
 model User {
   id            String     @id @default(uuid())
   phone         String     @unique
+  passwordHash  String?
+  phoneVerifiedAt DateTime?
+  lastLoginAt   DateTime?
   firstName     String?
   lastName      String?
   email         String?
