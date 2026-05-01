@@ -29,6 +29,9 @@ import { LongrichMatinService } from './longrich-matin/longrich-matin.service';
 import { CloudinaryController } from './cloudinary/cloudinary.controller';
 import { CloudinaryService } from './cloudinary/cloudinary.service';
 
+import { MiniSiteController } from './mini-site/mini-site.controller';
+import { MiniSiteService } from './mini-site/mini-site.service';
+
 @Module({
   imports: [],
   controllers: [
@@ -41,6 +44,7 @@ import { CloudinaryService } from './cloudinary/cloudinary.service';
     DebtsController,
     AccountingController,
     LongrichMatinController,
+    MiniSiteController,
     CloudinaryController,
   ],
   providers: [
@@ -53,6 +57,7 @@ import { CloudinaryService } from './cloudinary/cloudinary.service';
     DebtsService,
     AccountingService,
     LongrichMatinService,
+    MiniSiteService,
     CloudinaryService,
   ],
 })
