@@ -8,6 +8,7 @@ import { KycStatus, OtpPurpose, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
+import { WhatsappService } from './whatsapp.service';
 
 type RegisterPayload = {
   fullName: string;
@@ -23,7 +24,10 @@ type LoginPayload = {
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+  private readonly prisma: PrismaService,
+  private readonly whatsappService: WhatsappService,
+) {}
 
   private normalizePhone(phone: string): string {
     return phone.replace(/\s+/g, '').trim();
@@ -107,10 +111,11 @@ export class AuthService {
       },
     });
 
-    return {
-      expiresAt,
-      devOtp: process.env.NODE_ENV === 'production' ? undefined : otp,
-    };
+   return {
+  expiresAt,
+  otp,
+  devOtp: process.env.NODE_ENV === 'production' ? undefined : otp,
+};
   }
 
   async register(payload: RegisterPayload) {
@@ -205,6 +210,9 @@ export class AuthService {
     });
 
     const otpData = await this.createOtp(phone, OtpPurpose.REGISTER, user.id);
+    
+    // Envoi OTP via WhatsApp Cloud API
+await this.whatsappService.sendOtp(phone, otpData.otp);
 
     return {
       success: true,
