@@ -4,10 +4,26 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ACTIVER CORS (OBLIGATOIRE)
+  // CORS INTELLIGENT (Vercel + Local + Preview)
   app.enableCors({
-    origin: ['http://localhost:3000'],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+
+      const allowed = [
+        'http://localhost:3000',
+        'https://cerapro.vercel.app',
+      ];
+
+      if (
+        allowed.includes(origin) ||
+        origin.includes('.vercel.app')
+      ) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   });
 
