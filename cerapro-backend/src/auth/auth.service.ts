@@ -211,16 +211,31 @@ export class AuthService {
 
     const otpData = await this.createOtp(phone, OtpPurpose.REGISTER, user.id);
     
-    // Envoi OTP via WhatsApp Cloud API
-await this.whatsappService.sendOtp(phone, otpData.otp);
+       let whatsappSent = true;
 
-    return {
-      success: true,
-      message: 'Compte créé. Code de vérification envoyé.',
+// Envoi OTP via WhatsApp Cloud API
+try {
+  await this.whatsappService.sendOtp(phone, otpData.otp);
+} catch (error) {
+  whatsappSent = false;
+
+  console.error('REGISTER_WHATSAPP_OTP_FAILED', {
+    phone,
+    userId: user.id,
+    error,
+  });
+}
+
+return {
+  success: true,
+  message: whatsappSent
+    ? 'Compte créé. Code de vérification envoyé.'
+    : 'Compte créé. Le code WhatsApp n’a pas pu être envoyé pour le moment.',
       data: {
-        user: this.removeSensitiveUserFields(user),
-        otpExpiresAt: otpData.expiresAt,
-        devOtp: otpData.devOtp,
+       user: this.removeSensitiveUserFields(user),
+    otpExpiresAt: otpData.expiresAt,
+    devOtp: otpData.devOtp,
+    whatsappSent,
       },
     };
   }
