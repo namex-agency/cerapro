@@ -3,8 +3,8 @@ import {
   Controller,
   Post,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import { OtpPurpose } from '@prisma/client';
+import { AuthService } from './auth.service';
 
 @Controller('auth')
 export class AuthController {
@@ -39,7 +39,30 @@ export class AuthController {
     );
   }
 
+   @Post('request-password-reset')
+  async requestPasswordReset(
+    @Body()
+    body: {
+      phone: string;
+    },
+  ) {
+    return this.authService.requestPasswordReset(body);
+  }
+
+  @Post('reset-password')
+  async resetPassword(
+    @Body()
+    body: {
+      phone: string;
+      code: string;
+      newPassword: string;
+    },
+  ) {
+    return this.authService.resetPassword(body);
+  }
+
   @Post('login')
+  
   async login(
     @Body()
     body: {
