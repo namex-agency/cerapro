@@ -1,11 +1,19 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Param,
+  Post,
+} from '@nestjs/common';
 import { AdminService } from './admin.service';
 
 @Controller('admin')
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 
-  // 🔔 Créer une notification
+  // Créer une notification
   @Post('notification')
   async createNotification(
     @Body()
@@ -25,7 +33,7 @@ export class AdminController {
     };
   }
 
-  // 👤 Liste des utilisateurs
+  // Liste des utilisateurs
   @Get('users')
   async getUsers() {
     const users = await this.adminService.getUsers();
@@ -36,7 +44,7 @@ export class AdminController {
     };
   }
 
-  // 📊 KPI UTILISATEURS (🔥 NOUVEAU)
+  // KPI UTILISATEURS
   @Get('kpis')
   async getUsersKpis() {
     const kpis = await this.adminService.getUsersKpis();
@@ -44,6 +52,24 @@ export class AdminController {
     return {
       success: true,
       data: kpis,
+    };
+  }
+
+  // Suppression définitive réservée au super admin
+  @Delete('users/:id')
+  async deleteUser(
+    @Param('id') userId: string,
+    @Headers('x-super-admin-token') token: string,
+  ) {
+    const result = await this.adminService.deleteUserPermanently(
+      userId,
+      token,
+    );
+
+    return {
+      success: true,
+      message: 'Utilisateur supprimé définitivement.',
+      data: result,
     };
   }
 }
