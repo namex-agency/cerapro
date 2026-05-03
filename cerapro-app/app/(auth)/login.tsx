@@ -50,12 +50,13 @@ export default function LoginScreen() {
         throw new Error(result?.message || 'Connexion impossible.');
       }
 
-      Alert.alert(
-        'Connexion réussie',
-        result?.message || 'Bienvenue sur CERAPRO.',
-      );
+    const access = result?.data?.access;
 
-      router.replace('/(tabs)');
+if (access?.mustChooseSubscription) {
+  router.replace('/(auth)/subscription-choice');
+} else {
+  router.replace('/(tabs)');
+}
     } catch (error) {
       Alert.alert(
         'Erreur',

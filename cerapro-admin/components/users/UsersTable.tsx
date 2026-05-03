@@ -116,6 +116,8 @@ export default function UsersTable({
     });
   }, [usersData, searchQuery, activeFilter]);
 
+    console.log("USERS DATA ID CHECK", usersData);
+    
   const openAction = (user: User, action: UserActionType) => {
     if (action === "profile") setProfileUser(user);
     if (action === "kyc") setKycReviewUser(user);

@@ -9,7 +9,8 @@ export type UserActionType =
   | "suspend"
   | "more";
 
-export type User = {
+ export type User = {
+  id: string;
   fullName: string;
   phone: string;
   birthDate: string;
