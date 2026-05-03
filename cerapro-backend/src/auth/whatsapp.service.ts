@@ -24,12 +24,9 @@ export class WhatsappService {
         body: JSON.stringify({
           messaging_product: 'whatsapp',
           to: this.formatPhoneForWhatsapp(to),
-          type: 'template',
-          template: {
-            name: 'hello_world',
-            language: {
-              code: 'en_US',
-            },
+          type: 'text',
+          text: {
+          body: `Votre code CERAPRO est : ${otp}. Ne le partagez avec personne.`,
           },
         }),
       },
