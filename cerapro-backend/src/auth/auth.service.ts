@@ -8,6 +8,7 @@ import { KycStatus, OtpPurpose, UserRole, UserStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
 import { PrismaService } from '../prisma.service';
+import { SubscriptionService } from '../subscription/subscription.service';
 import { WhatsappService } from './whatsapp.service';
 
 type RegisterPayload = {
@@ -34,9 +35,10 @@ type ResetPasswordPayload = {
 
 @Injectable()
 export class AuthService {
-  constructor(
+constructor(
   private readonly prisma: PrismaService,
   private readonly whatsappService: WhatsappService,
+  private readonly subscriptionService: SubscriptionService,
 ) {}
 
   private normalizePhone(phone: string): string {
@@ -560,12 +562,17 @@ async resetPassword(payload: ResetPasswordPayload) {
       },
     });
 
-    return {
-      success: true,
-      message: 'Connexion réussie.',
-      data: {
-        user: this.removeSensitiveUserFields(updatedUser),
-      },
-    };
+    const access = await this.subscriptionService.getCurrentAccessForUser(
+  updatedUser.id,
+);
+
+return {
+  success: true,
+  message: 'Connexion réussie.',
+  data: {
+    user: this.removeSensitiveUserFields(updatedUser),
+    access,
+  },
+};
   }
 }
