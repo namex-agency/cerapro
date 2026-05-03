@@ -4,9 +4,16 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { KycStatus, OtpPurpose, UserRole, UserStatus } from '@prisma/client';
+import {
+  KycStatus,
+  OtpPurpose,
+  UserRole,
+  UserStatus,
+} from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
+import { JwtService } from '@nestjs/jwt';
+
 import { PrismaService } from '../prisma.service';
 import { SubscriptionService } from '../subscription/subscription.service';
 import { WhatsappService } from './whatsapp.service';
@@ -35,11 +42,12 @@ type ResetPasswordPayload = {
 
 @Injectable()
 export class AuthService {
-constructor(
-  private readonly prisma: PrismaService,
-  private readonly whatsappService: WhatsappService,
-  private readonly subscriptionService: SubscriptionService,
-) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsappService: WhatsappService,
+    private readonly subscriptionService: SubscriptionService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   private normalizePhone(phone: string): string {
     return phone.replace(/\s+/g, '').trim();
@@ -123,11 +131,11 @@ constructor(
       },
     });
 
-   return {
-  expiresAt,
-  otp,
-  devOtp: process.env.NODE_ENV === 'production' ? undefined : otp,
-};
+    return {
+      expiresAt,
+      otp,
+      devOtp: process.env.NODE_ENV === 'production' ? undefined : otp,
+    };
   }
 
   async register(payload: RegisterPayload) {
@@ -222,32 +230,31 @@ constructor(
     });
 
     const otpData = await this.createOtp(phone, OtpPurpose.REGISTER, user.id);
-    
-       let whatsappSent = true;
 
-// Envoi OTP via WhatsApp Cloud API
-try {
-  await this.whatsappService.sendOtp(phone, otpData.otp);
-} catch (error) {
-  whatsappSent = false;
+    let whatsappSent = true;
 
-  console.error('REGISTER_WHATSAPP_OTP_FAILED', {
-    phone,
-    userId: user.id,
-    error,
-  });
-}
+    try {
+      await this.whatsappService.sendOtp(phone, otpData.otp);
+    } catch (error) {
+      whatsappSent = false;
 
-return {
-  success: true,
-  message: whatsappSent
-    ? 'Compte créé. Code de vérification envoyé.'
-    : 'Compte créé. Le code WhatsApp n’a pas pu être envoyé pour le moment.',
+      console.error('REGISTER_WHATSAPP_OTP_FAILED', {
+        phone,
+        userId: user.id,
+        error,
+      });
+    }
+
+    return {
+      success: true,
+      message: whatsappSent
+        ? 'Compte créé. Code de vérification envoyé.'
+        : 'Compte créé. Le code WhatsApp n’a pas pu être envoyé pour le moment.',
       data: {
-       user: this.removeSensitiveUserFields(user),
-    otpExpiresAt: otpData.expiresAt,
-    devOtp: otpData.devOtp,
-    whatsappSent,
+        user: this.removeSensitiveUserFields(user),
+        otpExpiresAt: otpData.expiresAt,
+        devOtp: otpData.devOtp,
+        whatsappSent,
       },
     };
   }
@@ -335,163 +342,163 @@ return {
   }
 
   async requestPasswordReset(payload: RequestPasswordResetPayload) {
-  if (!payload.phone?.trim()) {
-    throw new BadRequestException('Le numéro WhatsApp est obligatoire.');
-  }
+    if (!payload.phone?.trim()) {
+      throw new BadRequestException('Le numéro WhatsApp est obligatoire.');
+    }
 
-  const phone = this.normalizePhone(payload.phone);
+    const phone = this.normalizePhone(payload.phone);
 
-  const user = await this.prisma.user.findUnique({
-    where: { phone },
-  });
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
 
-  if (!user) {
-    throw new BadRequestException(
-      'Aucun compte CERAPRO n’est associé à ce numéro WhatsApp.',
-    );
-  }
+    if (!user) {
+      throw new BadRequestException(
+        'Aucun compte CERAPRO n’est associé à ce numéro WhatsApp.',
+      );
+    }
 
-  if (user.status !== UserStatus.ACTIVE) {
-    throw new UnauthorizedException(
-      'Ce compte est inactif ou suspendu. Veuillez contacter le support CERAPRO.',
-    );
-  }
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException(
+        'Ce compte est inactif ou suspendu. Veuillez contacter le support CERAPRO.',
+      );
+    }
 
-  const otpData = await this.createOtp(
-    phone,
-    OtpPurpose.PASSWORD_RESET,
-    user.id,
-  );
-
-  await this.whatsappService.sendOtp(phone, otpData.otp);
-
-  await this.prisma.auditLog.create({
-    data: {
-      userId: user.id,
-      action: 'AUTH_PASSWORD_RESET_REQUEST',
-      entity: 'User',
-      entityId: user.id,
-      metadata: {
-        phone,
-        otpExpiresAt: otpData.expiresAt,
-      },
-    },
-  });
-
-  return {
-    success: true,
-    message: 'Code de réinitialisation envoyé sur WhatsApp.',
-    data: {
-      otpExpiresAt: otpData.expiresAt,
-      devOtp: otpData.devOtp,
-    },
-  };
-}
-
-async resetPassword(payload: ResetPasswordPayload) {
-  if (!payload.phone?.trim()) {
-    throw new BadRequestException('Le numéro WhatsApp est obligatoire.');
-  }
-
-  if (!payload.code?.trim()) {
-    throw new BadRequestException('Le code de vérification est obligatoire.');
-  }
-
-  if (!payload.newPassword || payload.newPassword.length < 6) {
-    throw new BadRequestException(
-      'Le nouveau mot de passe doit contenir au moins 6 caractères.',
-    );
-  }
-
-  const phone = this.normalizePhone(payload.phone);
-  const code = payload.code.trim();
-
-  const otpRecord = await this.prisma.otpCode.findFirst({
-    where: {
+    const otpData = await this.createOtp(
       phone,
-      purpose: OtpPurpose.PASSWORD_RESET,
-      consumedAt: null,
-      expiresAt: {
-        gt: new Date(),
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
-
-  if (!otpRecord) {
-    throw new UnauthorizedException('Code invalide ou expiré.');
-  }
-
-  if (otpRecord.attempts >= 5) {
-    throw new UnauthorizedException(
-      'Trop de tentatives. Demandez un nouveau code.',
+      OtpPurpose.PASSWORD_RESET,
+      user.id,
     );
-  }
 
-  const isValid = await this.compareHash(code, otpRecord.codeHash);
+    await this.whatsappService.sendOtp(phone, otpData.otp);
 
-  if (!isValid) {
-    await this.prisma.otpCode.update({
-      where: { id: otpRecord.id },
-      data: {
-        attempts: {
-          increment: 1,
-        },
-      },
-    });
-
-    throw new UnauthorizedException('Code invalide.');
-  }
-
-  const passwordHash = await this.hashValue(payload.newPassword);
-
-  const updatedUser = await this.prisma.$transaction(async (tx) => {
-    const user = otpRecord.userId
-      ? await tx.user.update({
-          where: { id: otpRecord.userId },
-          data: {
-            passwordHash,
-          },
-        })
-      : await tx.user.update({
-          where: { phone },
-          data: {
-            passwordHash,
-          },
-        });
-
-    await tx.otpCode.update({
-      where: { id: otpRecord.id },
-      data: {
-        consumedAt: new Date(),
-      },
-    });
-
-    await tx.auditLog.create({
+    await this.prisma.auditLog.create({
       data: {
         userId: user.id,
-        action: 'AUTH_PASSWORD_RESET_COMPLETED',
+        action: 'AUTH_PASSWORD_RESET_REQUEST',
         entity: 'User',
         entityId: user.id,
         metadata: {
           phone,
+          otpExpiresAt: otpData.expiresAt,
         },
       },
     });
 
-    return user;
-  });
+    return {
+      success: true,
+      message: 'Code de réinitialisation envoyé sur WhatsApp.',
+      data: {
+        otpExpiresAt: otpData.expiresAt,
+        devOtp: otpData.devOtp,
+      },
+    };
+  }
 
-  return {
-    success: true,
-    message: 'Mot de passe mis à jour avec succès.',
-    data: {
-      userId: updatedUser.id,
-    },
-  };
-}
+  async resetPassword(payload: ResetPasswordPayload) {
+    if (!payload.phone?.trim()) {
+      throw new BadRequestException('Le numéro WhatsApp est obligatoire.');
+    }
+
+    if (!payload.code?.trim()) {
+      throw new BadRequestException('Le code de vérification est obligatoire.');
+    }
+
+    if (!payload.newPassword || payload.newPassword.length < 6) {
+      throw new BadRequestException(
+        'Le nouveau mot de passe doit contenir au moins 6 caractères.',
+      );
+    }
+
+    const phone = this.normalizePhone(payload.phone);
+    const code = payload.code.trim();
+
+    const otpRecord = await this.prisma.otpCode.findFirst({
+      where: {
+        phone,
+        purpose: OtpPurpose.PASSWORD_RESET,
+        consumedAt: null,
+        expiresAt: {
+          gt: new Date(),
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    if (!otpRecord) {
+      throw new UnauthorizedException('Code invalide ou expiré.');
+    }
+
+    if (otpRecord.attempts >= 5) {
+      throw new UnauthorizedException(
+        'Trop de tentatives. Demandez un nouveau code.',
+      );
+    }
+
+    const isValid = await this.compareHash(code, otpRecord.codeHash);
+
+    if (!isValid) {
+      await this.prisma.otpCode.update({
+        where: { id: otpRecord.id },
+        data: {
+          attempts: {
+            increment: 1,
+          },
+        },
+      });
+
+      throw new UnauthorizedException('Code invalide.');
+    }
+
+    const passwordHash = await this.hashValue(payload.newPassword);
+
+    const updatedUser = await this.prisma.$transaction(async (tx) => {
+      const user = otpRecord.userId
+        ? await tx.user.update({
+            where: { id: otpRecord.userId },
+            data: {
+              passwordHash,
+            },
+          })
+        : await tx.user.update({
+            where: { phone },
+            data: {
+              passwordHash,
+            },
+          });
+
+      await tx.otpCode.update({
+        where: { id: otpRecord.id },
+        data: {
+          consumedAt: new Date(),
+        },
+      });
+
+      await tx.auditLog.create({
+        data: {
+          userId: user.id,
+          action: 'AUTH_PASSWORD_RESET_COMPLETED',
+          entity: 'User',
+          entityId: user.id,
+          metadata: {
+            phone,
+          },
+        },
+      });
+
+      return user;
+    });
+
+    return {
+      success: true,
+      message: 'Mot de passe mis à jour avec succès.',
+      data: {
+        userId: updatedUser.id,
+      },
+    };
+  }
 
   async login(payload: LoginPayload) {
     if (!payload.phone?.trim()) {
@@ -563,16 +570,23 @@ async resetPassword(payload: ResetPasswordPayload) {
     });
 
     const access = await this.subscriptionService.getCurrentAccessForUser(
-  updatedUser.id,
-);
+      updatedUser.id,
+    );
 
-return {
-  success: true,
-  message: 'Connexion réussie.',
-  data: {
-    user: this.removeSensitiveUserFields(updatedUser),
-    access,
-  },
-};
+    const accessToken = this.jwtService.sign({
+      sub: updatedUser.id,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+    });
+
+    return {
+      success: true,
+      message: 'Connexion réussie.',
+      data: {
+        user: this.removeSensitiveUserFields(updatedUser),
+        access,
+        accessToken,
+      },
+    };
   }
 }

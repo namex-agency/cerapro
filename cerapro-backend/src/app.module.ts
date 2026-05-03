@@ -32,7 +32,10 @@ import { CloudinaryService } from './cloudinary/cloudinary.service';
 import { MiniSiteController } from './mini-site/mini-site.controller';
 import { MiniSiteService } from './mini-site/mini-site.service';
 
+import { SubscriptionService } from './subscription/subscription.service';
+
 import { AuthModule } from './auth/auth.module';
+import { PrismaService } from './prisma.service';
 
 @Module({
   imports: [AuthModule],
@@ -61,6 +64,8 @@ import { AuthModule } from './auth/auth.module';
     LongrichMatinService,
     MiniSiteService,
     CloudinaryService,
+    PrismaService,
+    SubscriptionService,
   ],
 })
 export class AppModule {}
