@@ -29,6 +29,7 @@ function mapApiUserToUser(apiUser: ApiUser): User {
   const isKycVerified = Boolean(apiUser.isKycVerified);
 
   return {
+    id: toText(apiUser.id),
     fullName,
     phone: toText(apiUser.phone),
     birthDate: toText(apiUser.birthDate, "À compléter"),
