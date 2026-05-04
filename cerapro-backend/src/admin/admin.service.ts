@@ -59,55 +59,116 @@ export class AdminService {
     });
   }
 
- async getUsers() {
-  const users = await prisma.user.findMany({
-    orderBy: {
-      id: 'desc',
-    },
-    include: {
-      profile: true,
-      kycProfile: true,
-      wallet: true,
-      miniSite: true,
-    },
-  });
+  async getUsers() {
+    const users = await prisma.user.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        profile: true,
+        kycProfile: true,
+        wallet: true,
+        miniSite: true,
+        subscriptions: {
+          where: {
+            isCurrent: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+    });
 
-  return users.map((user) => ({
-    id: user.id,
-    fullName: `${user.firstName} ${user.lastName || ''}`.trim(),
-    phone: user.phone,
-    birthDate: user.profile?.birthDate || 'À compléter',
-    birthPlace: user.profile?.birthPlace || 'À compléter',
-    placeName: user.profile?.placeName || 'À compléter',
-    district: user.profile?.district || 'À compléter',
-    city: user.profile?.city || 'À compléter',
-    country: user.profile?.country || 'À compléter',
+    return users.map((user) => {
+      const currentSubscription = user.subscriptions[0] ?? null;
 
-    status: user.status === 'ACTIVE' ? 'Actif' : 'Inactif',
+      const selfieUrl = user.kycProfile?.selfieUrl ?? null;
+      const cniFrontUrl = user.kycProfile?.cniFrontUrl ?? null;
+      const cniBackUrl = user.kycProfile?.cniBackUrl ?? null;
 
-    kyc:
-      user.kycProfile?.status === 'APPROVED'
-        ? 'Validé'
-        : user.kycProfile?.status === 'PENDING'
-        ? 'En attente'
-        : 'Incomplet',
+      const kycFields = [
+        user.firstName || user.lastName,
+        user.phone,
+        user.profile?.country,
+        user.profile?.city,
+        user.profile?.district,
+        user.profile?.placeName,
+        user.profile?.birthDate,
+        user.profile?.birthPlace,
+        selfieUrl,
+        cniFrontUrl,
+        cniBackUrl,
+      ];
 
-    kycFieldsCompleted: 3,
-    kycFieldsTotal: 11,
+      const kycFieldsCompleted = kycFields.filter(Boolean).length;
+      const kycFieldsTotal = kycFields.length;
 
-    kycFiles: {
-      selfie: false,
-      cniFront: false,
-      cniBack: false,
-    },
+      const subscriptionLabel =
+        currentSubscription?.status === 'TRIALING'
+          ? 'Essai gratuit'
+          : currentSubscription?.status === 'ACTIVE'
+            ? 'Abonnement actif'
+            : currentSubscription?.status === 'PAYMENT_PENDING'
+              ? 'Paiement en attente'
+              : currentSubscription?.status === 'CANCELLED'
+                ? 'Annulé'
+                : 'Expiré';
 
-    subscription: 'Standard',
-    subscriptionPrice: '1 000 FCFA',
+      const subscriptionPrice = currentSubscription
+        ? `${Number(currentSubscription.amount || 0).toLocaleString('fr-FR')} ${currentSubscription.currency}`
+        : 'Aucun abonnement';
 
-    miniSite: user.miniSite?.slug || 'Inactif',
-    wallet: `${user.wallet?.availableBalance || 0} FCFA`,
-  }));
-}
+      return {
+        id: user.id,
+        fullName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || 'À compléter',
+        phone: user.phone,
+        birthDate: user.profile?.birthDate
+          ? user.profile.birthDate.toISOString()
+          : 'À compléter',
+        birthPlace: user.profile?.birthPlace || 'À compléter',
+        placeName: user.profile?.placeName || 'À compléter',
+        district: user.profile?.district || 'À compléter',
+        city: user.profile?.city || 'À compléter',
+        country: user.profile?.country || 'À compléter',
+
+        status: user.status === 'ACTIVE' ? 'Actif' : 'Inactif',
+
+        kyc:
+          user.kycProfile?.status === 'APPROVED'
+            ? 'Validé'
+            : user.kycProfile?.status === 'PENDING'
+              ? 'En attente'
+              : 'Incomplet',
+
+        kycFieldsCompleted,
+        kycFieldsTotal,
+
+        kycFiles: {
+          selfie: Boolean(selfieUrl),
+          cniFront: Boolean(cniFrontUrl),
+          cniBack: Boolean(cniBackUrl),
+        },
+
+        selfieUrl,
+        cniFrontUrl,
+        cniBackUrl,
+
+        subscription: subscriptionLabel,
+        subscriptionPrice,
+        subscriptionStatus: currentSubscription?.status ?? null,
+        subscriptionPlan: currentSubscription?.plan ?? null,
+        subscriptionStartsAt: currentSubscription?.startsAt?.toISOString() ?? null,
+        subscriptionEndsAt: currentSubscription?.endsAt?.toISOString() ?? null,
+        subscriptionTrialEndsAt:
+          currentSubscription?.trialEndsAt?.toISOString() ?? null,
+
+        miniSite: user.miniSite?.slug || 'Inactif',
+        wallet: `${Number(user.wallet?.availableBalance || 0).toLocaleString('fr-FR')} FCFA`,
+      };
+    });
+  }
 
   async getUsersKpis() {
     const total = await prisma.user.count();
