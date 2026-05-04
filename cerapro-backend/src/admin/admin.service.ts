@@ -181,8 +181,13 @@ export class AdminService {
 
     const kycPending = total - kycValidated;
 
-    const active = total;
-    const inactive = 0;
+    const active = await prisma.user.count({
+  where: {
+    status: 'ACTIVE',
+  },
+});
+
+const inactive = total - active;
 
     return {
       total,
