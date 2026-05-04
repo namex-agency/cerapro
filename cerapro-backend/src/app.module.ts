@@ -35,6 +35,9 @@ import { MiniSiteService } from './mini-site/mini-site.service';
 import { SubscriptionController } from './subscription/subscription.controller';
 import { SubscriptionService } from './subscription/subscription.service';
 
+import { KycController } from './kyc/kyc.controller';
+import { KycService } from './kyc/kyc.service';
+
 import { AuthModule } from './auth/auth.module';
 import { PrismaService } from './prisma.service';
 
@@ -53,6 +56,7 @@ import { PrismaService } from './prisma.service';
     MiniSiteController,
     CloudinaryController,
     SubscriptionController,
+    KycController,
   ],
   providers: [
     AppService,
@@ -68,6 +72,7 @@ import { PrismaService } from './prisma.service';
     CloudinaryService,
     PrismaService,
     SubscriptionService,
+    KycService,
   ],
 })
 export class AppModule {}
