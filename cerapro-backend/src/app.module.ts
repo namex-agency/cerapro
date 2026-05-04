@@ -32,6 +32,7 @@ import { CloudinaryService } from './cloudinary/cloudinary.service';
 import { MiniSiteController } from './mini-site/mini-site.controller';
 import { MiniSiteService } from './mini-site/mini-site.service';
 
+import { SubscriptionController } from './subscription/subscription.controller';
 import { SubscriptionService } from './subscription/subscription.service';
 
 import { AuthModule } from './auth/auth.module';
@@ -51,6 +52,7 @@ import { PrismaService } from './prisma.service';
     LongrichMatinController,
     MiniSiteController,
     CloudinaryController,
+    SubscriptionController,
   ],
   providers: [
     AppService,
