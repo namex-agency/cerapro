@@ -17,6 +17,10 @@ function toText(value: unknown, fallback = "Non renseigné") {
     : fallback;
 }
 
+function mapApiUserStatus(apiUser: ApiUser): User["status"] {
+  return apiUser.status === "Actif" ? "Actif" : "Inactif";
+}
+
 function mapApiUserToUser(apiUser: ApiUser): User {
   const firstName = toText(apiUser.firstName, "");
   const lastName = toText(apiUser.lastName, "");
@@ -29,7 +33,7 @@ function mapApiUserToUser(apiUser: ApiUser): User {
     id: toText(apiUser.id),
     fullName,
     phone: toText(apiUser.phone),
-    status: Boolean(apiUser.isActive) === false ? "Inactif" : "Actif",
+    status: mapApiUserStatus(apiUser),
   };
 }
 
