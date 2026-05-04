@@ -1,10 +1,4 @@
-import {
-  BadgeCheck,
-  Ban,
-  Eye,
-  FileSearch,
-  MoreHorizontal,
-} from "lucide-react";
+import { Ban, Eye, MoreHorizontal } from "lucide-react";
 
 import type { User, UserActionType } from "../types";
 
@@ -23,24 +17,6 @@ export default function UserRowActions({ user, onAction }: UserRowActionsProps) 
         className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-primary-light)] text-[var(--color-primary-dark)] transition hover:bg-[var(--color-primary)] hover:text-white"
       >
         <Eye size={17} />
-      </button>
-
-      <button
-        type="button"
-        title="Vérifier KYC"
-        onClick={() => onAction(user, "kyc")}
-        className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-50 text-yellow-700 transition hover:bg-yellow-100"
-      >
-        <FileSearch size={17} />
-      </button>
-
-      <button
-        type="button"
-        title="Valider KYC"
-        onClick={() => onAction(user, "validate")}
-        className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100"
-      >
-        <BadgeCheck size={17} />
       </button>
 
       <button

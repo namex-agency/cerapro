@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CheckCircle, UserX, Users } from "lucide-react";
 
 import { getUsers, getUsersKpis, type UsersKpisData } from "@/lib/api";
 import UsersKpiGrid from "./UsersKpiGrid";
-import UsersToolbar from "./UsersToolbar";
 import UsersTable from "./UsersTable";
+import UsersToolbar from "./UsersToolbar";
 import type { User, UsersFilter } from "./types";
-
-import { Users, CheckCircle, UserX, Clock } from "lucide-react";
 
 type ApiUser = Record<string, unknown>;
 
@@ -26,31 +25,11 @@ function mapApiUserToUser(apiUser: ApiUser): User {
     toText(apiUser.fullName) ||
     toText(apiUser.name);
 
-  const isKycVerified = Boolean(apiUser.isKycVerified);
-
   return {
     id: toText(apiUser.id),
     fullName,
     phone: toText(apiUser.phone),
-    birthDate: toText(apiUser.birthDate, "À compléter"),
-    birthPlace: toText(apiUser.birthPlace, "À compléter"),
-    placeName: toText(apiUser.placeName, "À compléter"),
-    district: toText(apiUser.district, "À compléter"),
-    city: toText(apiUser.city, "À compléter"),
-    country: toText(apiUser.country, "Cameroun"),
-    status: "Actif",
-    kyc: isKycVerified ? "Validé" : "Incomplet",
-    kycFieldsCompleted: isKycVerified ? 11 : 3,
-    kycFieldsTotal: 11,
-    kycFiles: {
-      selfie: isKycVerified,
-      cniFront: isKycVerified,
-      cniBack: isKycVerified,
-    },
-    subscription: toText(apiUser.subscription, "Standard"),
-    subscriptionPrice: toText(apiUser.subscriptionPrice, "1 000 FCFA"),
-    miniSite: toText(apiUser.miniSite, "Inactif"),
-    wallet: toText(apiUser.wallet, "0 FCFA"),
+    status: Boolean(apiUser.isActive) === false ? "Inactif" : "Actif",
   };
 }
 
@@ -68,7 +47,6 @@ export default function UsersManagement() {
         setIsLoading(true);
         setErrorMessage("");
 
-        // 🔥 appel backend users + kpis en parallèle
         const [usersResponse, kpisResponse] = await Promise.all([
           getUsers(),
           getUsersKpis(),
@@ -79,7 +57,6 @@ export default function UsersManagement() {
 
         const data: UsersKpisData = kpisResponse.data;
 
-        // 🔥 transformation KPI backend → UI cards
         setKpis([
           {
             title: "Total Longricheurs",
@@ -90,26 +67,14 @@ export default function UsersManagement() {
           {
             title: "Actifs",
             value: data.active.toLocaleString(),
-            description: "Avec activité",
+            description: "Comptes actifs",
             icon: CheckCircle,
           },
           {
             title: "Inactifs",
             value: data.inactive.toLocaleString(),
-            description: "Sans activité récente",
+            description: "Comptes inactifs",
             icon: UserX,
-          },
-          {
-            title: "KYC validés",
-            value: data.kycValidated.toLocaleString(),
-            description: "Comptes vérifiés",
-            icon: CheckCircle,
-          },
-          {
-            title: "KYC en attente",
-            value: data.kycPending.toLocaleString(),
-            description: "Dossiers à valider",
-            icon: Clock,
           },
         ]);
       } catch {
@@ -136,12 +101,11 @@ export default function UsersManagement() {
         </h1>
 
         <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-[var(--color-muted)]">
-          Supervisez les comptes Longricheurs, leurs statuts, leurs abonnements,
-          leurs mini-sites et leurs niveaux de conformité KYC.
+          Supervisez simplement les comptes Longricheurs enregistrés sur
+          CERAPRO.
         </p>
       </div>
 
-      {/* 🔥 KPI CONNECTÉS */}
       <UsersKpiGrid kpis={kpis} />
 
       <UsersToolbar

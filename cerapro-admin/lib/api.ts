@@ -51,7 +51,42 @@ export async function apiRequest<T>(
  * USERS API — ADMIN
  */
 export async function getUsers() {
-  return apiRequest<ApiResponse<any[]>>("/admin/users");
+  const response = await apiRequest<ApiResponse<any[]>>("/admin/users");
+
+  return {
+    success: response.success,
+    data: response.data.map((user) => ({
+      id: user.id,
+      fullName: user.fullName,
+      phone: user.phone,
+      birthDate: user.birthDate,
+      birthPlace: user.birthPlace,
+      placeName: user.placeName,
+      district: user.district,
+      city: user.city,
+      country: user.country,
+      status: user.status,
+      kyc: user.kyc,
+      kycFieldsCompleted: user.kycFieldsCompleted,
+      kycFieldsTotal: user.kycFieldsTotal,
+
+      kycFiles: {
+        selfie: !!user.selfieUrl,
+        cniFront: !!user.cniFrontUrl,
+        cniBack: !!user.cniBackUrl,
+      },
+
+      // NOUVEAU — URLs Cloudinary injectées
+      selfieUrl: user.selfieUrl,
+      cniFrontUrl: user.cniFrontUrl,
+      cniBackUrl: user.cniBackUrl,
+
+      subscription: user.subscription,
+      subscriptionPrice: user.subscriptionPrice,
+      miniSite: user.miniSite,
+      wallet: user.wallet,
+    })),
+  };
 }
 
 /**
