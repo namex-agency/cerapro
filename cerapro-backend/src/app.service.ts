@@ -1,131 +1,97 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { Injectable, NotFoundException } from '@nestjs/common';
 
-const DEFAULT_USER_PHONE = '+237600000000';
+import { PrismaService } from './prisma.service';
 
 @Injectable()
 export class AppService {
-  private prisma: PrismaClient;
+  constructor(private readonly prisma: PrismaService) {}
 
-  constructor() {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-
-    const adapter = new PrismaPg(pool);
-
-    this.prisma = new PrismaClient({
-      adapter,
-    });
-  }
-
-  private async getDefaultUser() {
-    return this.prisma.user.upsert({
-      where: { phone: DEFAULT_USER_PHONE },
-      update: {},
-      create: {
-        phone: DEFAULT_USER_PHONE,
-        firstName: 'Eric',
-        lastName: 'Namo',
-        email: 'eric.namo@cerapro.local',
-        isKycVerified: false,
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+      include: {
+        profile: true,
+        kycProfile: true,
+        wallet: true,
+        miniSite: true,
+        subscriptions: {
+          where: {
+            isCurrent: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
       },
     });
-  }
 
-  async getMe() {
-    const user = await this.getDefaultUser();
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
 
     const notificationsUnread = await this.prisma.notification.count({
       where: {
-        userId: user.id,
+        userId,
         read: false,
       },
     });
 
+    const currentSubscription = user.subscriptions[0] ?? null;
+
     return {
       id: user.id,
-      fullName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
       phone: user.phone,
-      country: 'Cameroun',
-      city: 'Yaoundé',
-      district: 'Bastos',
-      kycCompleted: user.isKycVerified,
-      subscription: {
-        status: 'ACTIVE',
-        expiresAt: '2026-12-31',
-      },
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      fullName: `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim(),
+      role: user.role,
+      status: user.status,
+      isKycVerified: user.isKycVerified,
+      kycStatus: user.kycProfile?.status ?? 'NOT_STARTED',
+      profile: user.profile,
+      wallet: user.wallet,
+      miniSite: user.miniSite,
+      subscription: currentSubscription,
       notificationsUnread,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     };
   }
 
-  async getNotifications() {
-    const user = await this.getDefaultUser();
-
-    const existingNotifications = await this.prisma.notification.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (existingNotifications.length > 0) {
-      return existingNotifications;
-    }
-
-    await this.prisma.notification.createMany({
-      data: [
-        {
-          userId: user.id,
-          title: 'Bienvenue sur CERAPRO',
-          message: 'Votre espace Longricheur est prêt.',
-          time: 'Maintenant',
-          read: false,
-        },
-        {
-          userId: user.id,
-          title: 'KYC en attente',
-          message:
-            'Complétez votre vérification pour activer toutes les fonctionnalités.',
-          time: 'Aujourd’hui',
-          read: false,
-        },
-        {
-          userId: user.id,
-          title: 'Mini-site disponible',
-          message: 'Votre mini-site personnel CERAPRO sera bientôt connecté.',
-          time: 'Aujourd’hui',
-          read: false,
-        },
-      ],
-    });
-
+  async getNotifications(userId: string) {
     return this.prisma.notification.findMany({
-      where: { userId: user.id },
-      orderBy: { createdAt: 'desc' },
+      where: {
+        userId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
   }
 
-  async markNotificationAsRead(id: string) {
-    const user = await this.getDefaultUser();
-
+  async markNotificationAsRead(userId: string, id: string) {
     const notification = await this.prisma.notification.findFirst({
       where: {
         id,
-        userId: user.id,
+        userId,
       },
     });
 
     if (!notification) {
-      return {
-        success: false,
-        message: 'Notification introuvable',
-      };
+      throw new NotFoundException('Notification introuvable.');
     }
 
     const updatedNotification = await this.prisma.notification.update({
-      where: { id: notification.id },
-      data: { read: true },
+      where: {
+        id: notification.id,
+      },
+      data: {
+        read: true,
+      },
     });
 
     return {

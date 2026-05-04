@@ -1,32 +1,51 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
+import { Request } from 'express';
+
+import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { AppService } from './app.service';
+
+type AuthenticatedRequest = Request & {
+  user: {
+    id: string;
+    phone: string;
+    role: string;
+  };
+};
 
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  // ROUTE RACINE (AJOUTÉE)
   @Get()
   root() {
     return {
       message: 'CERAPRO API is running',
-      status: 'OK'
+      status: 'OK',
     };
   }
 
-  // TES ROUTES EXISTANTES (INCHANGÉES)
   @Get('me')
-  getMe() {
-    return this.appService.getMe();
+  @UseGuards(JwtAuthGuard)
+  getMe(@Req() req: AuthenticatedRequest) {
+    return this.appService.getMe(req.user.id);
   }
 
   @Get('notifications')
-  getNotifications() {
-    return this.appService.getNotifications();
+  @UseGuards(JwtAuthGuard)
+  getNotifications(@Req() req: AuthenticatedRequest) {
+    return this.appService.getNotifications(req.user.id);
   }
 
   @Patch('notifications/read')
-  markAsRead(@Body('id') id: string) {
-    return this.appService.markNotificationAsRead(id);
+  @UseGuards(JwtAuthGuard)
+  markAsRead(@Req() req: AuthenticatedRequest, @Body('id') id: string) {
+    return this.appService.markNotificationAsRead(req.user.id, id);
   }
 }
