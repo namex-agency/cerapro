@@ -1,96 +1,58 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-import { Pool } from 'pg';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { ContactStatus, ContactType } from '@prisma/client';
 
-const DEFAULT_USER_PHONE = '+237600000000';
-
-type ContactTypeValue = 'CONTACT' | 'PROSPECT' | 'CONSUMER' | 'DOWNLINE';
-type ContactStatusValue = 'ACTIVE' | 'INACTIVE';
+import { PrismaService } from '../prisma.service';
 
 type CreateContactPayload = {
+  userId: string;
   firstName?: string;
   lastName?: string;
   fullName?: string;
   phone: string;
-  type?: ContactTypeValue;
-  status?: ContactStatusValue;
+  type?: ContactType;
+  status?: ContactStatus;
   note?: string;
   notes?: string;
 };
 
-type UpdateContactPayload = Partial<CreateContactPayload>;
+type UpdateContactPayload = Partial<Omit<CreateContactPayload, 'userId'>>;
 
 @Injectable()
 export class ContactsService {
-  private prisma: PrismaClient;
-
-  constructor() {
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-    });
-
-    const adapter = new PrismaPg(pool);
-
-    this.prisma = new PrismaClient({
-      adapter,
-    });
-  }
-
-  private async getDefaultUser() {
-    return this.prisma.user.upsert({
-      where: {
-        phone: DEFAULT_USER_PHONE,
-      },
-      update: {},
-      create: {
-        phone: DEFAULT_USER_PHONE,
-        firstName: 'Eric',
-        lastName: 'Namo',
-        email: 'eric.namo@cerapro.local',
-        isKycVerified: false,
-      },
-    });
-  }
+  constructor(private readonly prisma: PrismaService) {}
 
   private buildFullName(payload: Partial<CreateContactPayload>) {
     const firstName = payload.firstName?.trim() ?? '';
     const lastName = payload.lastName?.trim() ?? '';
     const fullName = payload.fullName?.trim() ?? '';
 
-    if (fullName) {
-      return fullName;
-    }
+    if (fullName) return fullName;
 
     return `${firstName} ${lastName}`.trim();
   }
 
   async createContact(payload: CreateContactPayload) {
-    const user = await this.getDefaultUser();
-
     const phone = payload.phone?.trim();
     const fullName = this.buildFullName(payload);
     const notes = payload.notes ?? payload.note ?? null;
-    const type = payload.type ?? 'CONTACT';
-    const status = payload.status ?? 'ACTIVE';
+    const type = payload.type ?? ContactType.CONTACT;
+    const status = payload.status ?? ContactStatus.ACTIVE;
+
+    if (!payload.userId) {
+      throw new BadRequestException('Utilisateur non authentifié.');
+    }
 
     if (!phone) {
-      return {
-        success: false,
-        message: 'Le numéro de téléphone est obligatoire.',
-      };
+      throw new BadRequestException('Le numéro de téléphone est obligatoire.');
     }
 
     if (!fullName) {
-      return {
-        success: false,
-        message: 'Le nom du contact est obligatoire.',
-      };
+      throw new BadRequestException('Le nom du contact est obligatoire.');
     }
 
     const existingContact = await this.prisma.contact.findFirst({
       where: {
-        userId: user.id,
+        userId: payload.userId,
         phone,
       },
     });
@@ -105,13 +67,13 @@ export class ContactsService {
 
     const contact = await this.prisma.contact.create({
       data: {
-        userId: user.id,
+        userId: payload.userId,
         fullName,
         phone,
         type,
         status,
         notes,
-      } as any,
+      },
     });
 
     return {
@@ -120,13 +82,16 @@ export class ContactsService {
     };
   }
 
-  async getContacts(search?: string) {
-    const user = await this.getDefaultUser();
+  async getContacts(userId: string, search?: string) {
+    if (!userId) {
+      throw new BadRequestException('Utilisateur non authentifié.');
+    }
+
     const query = search?.trim();
 
     const contacts = await this.prisma.contact.findMany({
       where: {
-        userId: user.id,
+        userId,
         ...(query
           ? {
               OR: [
@@ -136,7 +101,7 @@ export class ContactsService {
               ],
             }
           : {}),
-      } as any,
+      },
       orderBy: {
         createdAt: 'desc',
       },
@@ -148,13 +113,15 @@ export class ContactsService {
     };
   }
 
-  async getContactById(id: string) {
-    const user = await this.getDefaultUser();
+  async getContactById(userId: string, id: string) {
+    if (!userId) {
+      throw new BadRequestException('Utilisateur non authentifié.');
+    }
 
     const contact = await this.prisma.contact.findFirst({
       where: {
         id,
-        userId: user.id,
+        userId,
       },
     });
 
@@ -178,15 +145,17 @@ export class ContactsService {
     };
   }
 
-  async updateContact(id: string, payload: UpdateContactPayload) {
-    const user = await this.getDefaultUser();
+  async updateContact(userId: string, id: string, payload: UpdateContactPayload) {
+    if (!userId) {
+      throw new BadRequestException('Utilisateur non authentifié.');
+    }
 
-    const contact = (await this.prisma.contact.findFirst({
+    const contact = await this.prisma.contact.findFirst({
       where: {
         id,
-        userId: user.id,
+        userId,
       },
-    })) as any;
+    });
 
     if (!contact) {
       return {
@@ -211,7 +180,7 @@ export class ContactsService {
         type: payload.type ?? contact.type,
         status: payload.status ?? contact.status,
         notes: payload.notes ?? payload.note ?? contact.notes,
-      } as any,
+      },
     });
 
     return {

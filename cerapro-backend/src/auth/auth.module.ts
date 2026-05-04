@@ -7,6 +7,7 @@ import { SubscriptionService } from '../subscription/subscription.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { WhatsappService } from './whatsapp.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { WhatsappService } from './whatsapp.service';
     AuthService,
     PrismaService,
     WhatsappService,
+    JwtAuthGuard,
     SubscriptionService,
   ],
   exports: [AuthService, JwtModule],
