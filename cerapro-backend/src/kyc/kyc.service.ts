@@ -123,4 +123,112 @@ export class KycService {
       kycProfile,
     };
   }
+
+  async getAdminKycProfiles() {
+    const kycProfiles = await this.prisma.kycProfile.findMany({
+      orderBy: {
+        submittedAt: 'desc',
+      },
+      include: {
+        user: {
+          include: {
+            profile: true,
+          },
+        },
+      },
+    });
+
+    return kycProfiles.map((kycProfile) => ({
+      id: kycProfile.id,
+      userId: kycProfile.userId,
+      status: kycProfile.status,
+      submittedAt: kycProfile.submittedAt,
+      reviewedAt: kycProfile.reviewedAt,
+      rejectionReason: kycProfile.rejectionReason,
+      selfieUrl: kycProfile.selfieUrl,
+      cniFrontUrl: kycProfile.cniFrontUrl,
+      cniBackUrl: kycProfile.cniBackUrl,
+      user: {
+        id: kycProfile.user.id,
+        fullName:
+          `${kycProfile.user.firstName ?? ''} ${kycProfile.user.lastName ?? ''}`.trim() ||
+          'À compléter',
+        phone: kycProfile.user.phone,
+        country: kycProfile.user.profile?.country ?? 'À compléter',
+        city: kycProfile.user.profile?.city ?? 'À compléter',
+        district: kycProfile.user.profile?.district ?? 'À compléter',
+        placeName: kycProfile.user.profile?.placeName ?? 'À compléter',
+        birthDate: kycProfile.user.profile?.birthDate ?? null,
+        birthPlace: kycProfile.user.profile?.birthPlace ?? 'À compléter',
+      },
+    }));
+  }
+
+  async approveKyc(userId: string) {
+    const kycProfile = await this.prisma.kycProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!kycProfile) {
+      throw new NotFoundException('Dossier KYC introuvable.');
+    }
+
+    const updated = await this.prisma.kycProfile.update({
+      where: { userId },
+      data: {
+        status: KycStatus.APPROVED,
+        reviewedAt: new Date(),
+        rejectionReason: null,
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isKycVerified: true,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'KYC validé avec succès.',
+      data: updated,
+    };
+  }
+
+  async rejectKyc(userId: string, reason: string) {
+    if (!reason || !reason.trim()) {
+      throw new BadRequestException('Le motif de rejet est obligatoire.');
+    }
+
+    const kycProfile = await this.prisma.kycProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!kycProfile) {
+      throw new NotFoundException('Dossier KYC introuvable.');
+    }
+
+    const updated = await this.prisma.kycProfile.update({
+      where: { userId },
+      data: {
+        status: KycStatus.REJECTED,
+        reviewedAt: new Date(),
+        rejectionReason: reason.trim(),
+      },
+    });
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isKycVerified: false,
+      },
+    });
+
+    return {
+      success: true,
+      message: 'KYC rejeté avec succès.',
+      data: updated,
+    };
+  }
 }
