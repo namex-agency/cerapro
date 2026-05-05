@@ -113,8 +113,30 @@ export async function createAdminNotification(data: {
 }
 
 /**
+ * KYC API — ADMIN
+ */
+export async function getAdminKycProfiles() {
+  return apiRequest<ApiResponse<any[]>>("/kyc/admin");
+}
+
+export async function approveAdminKyc(userId: string) {
+  return apiRequest<ApiResponse<any>>(`/kyc/admin/${userId}/approve`, {
+    method: "POST",
+  });
+}
+
+export async function rejectAdminKyc(userId: string, reason: string) {
+  return apiRequest<ApiResponse<any>>(`/kyc/admin/${userId}/reject`, {
+    method: "POST",
+    body: {
+      reason,
+    },
+  });
+}
+
+/**
  * FUTURES RUBRIQUES ADMIN
  *
- * KYC, abonnements, produits, commandes, mini-sites et wallets
+ * abonnements, produits, commandes, mini-sites et wallets
  * seront ajoutés ici uniquement quand leurs routes backend seront créées.
  */
