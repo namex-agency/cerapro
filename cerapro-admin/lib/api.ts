@@ -25,10 +25,24 @@ export async function apiRequest<T>(
   options: ApiRequestOptions = {}
 ): Promise<T> {
   try {
+    const adminToken =
+      typeof window !== "undefined"
+        ? localStorage.getItem("cerapro_admin_token")
+        : null;
+
+    if (!adminToken) {
+      if (typeof window !== "undefined") {
+        window.location.href = "/admin-login";
+      }
+
+      throw new Error("Token admin manquant.");
+    }
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       method: options.method ?? "GET",
       headers: {
         "Content-Type": "application/json",
+        Authorization: `Bearer ${adminToken}`,
       },
       body: options.body ? JSON.stringify(options.body) : undefined,
     });
