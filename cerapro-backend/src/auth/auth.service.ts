@@ -589,4 +589,79 @@ export class AuthService {
       },
     };
   }
+
+  async adminLogin(payload: LoginPayload) {
+    if (!payload.phone?.trim()) {
+      throw new BadRequestException('Le numéro est obligatoire.');
+    }
+
+    if (!payload.password?.trim()) {
+      throw new BadRequestException('Le mot de passe est obligatoire.');
+    }
+
+    const phone = this.normalizePhone(payload.phone);
+
+    const user = await this.prisma.user.findUnique({
+      where: { phone },
+    });
+
+    if (!user || !user.passwordHash) {
+      throw new UnauthorizedException('Identifiants admin incorrects.');
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new UnauthorizedException('Compte admin inactif ou suspendu.');
+    }
+
+    if (user.role !== UserRole.ADMIN && user.role !== UserRole.SUPER_ADMIN) {
+      throw new UnauthorizedException(
+        'Accès refusé. Compte administrateur requis.',
+      );
+    }
+
+    const passwordOk = await this.compareHash(
+      payload.password,
+      user.passwordHash,
+    );
+
+    if (!passwordOk) {
+      throw new UnauthorizedException('Identifiants admin incorrects.');
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        lastLoginAt: new Date(),
+      },
+    });
+
+    const accessToken = this.jwtService.sign({
+      sub: updatedUser.id,
+      phone: updatedUser.phone,
+      role: updatedUser.role,
+    });
+
+    await this.prisma.auditLog.create({
+      data: {
+        userId: updatedUser.id,
+        action: 'AUTH_ADMIN_LOGIN',
+        entity: 'User',
+        entityId: updatedUser.id,
+        metadata: {
+          phone: updatedUser.phone,
+          role: updatedUser.role,
+          loggedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: 'Connexion admin réussie.',
+      data: {
+        user: this.removeSensitiveUserFields(updatedUser),
+        accessToken,
+      },
+    };
+  }
 }

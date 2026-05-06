@@ -61,6 +61,17 @@ export class AuthController {
     return this.authService.resetPassword(body);
   }
 
+    @Post('admin/login')
+  async adminLogin(
+    @Body()
+    body: {
+      phone: string;
+      password: string;
+    },
+  ) {
+    return this.authService.adminLogin(body);
+  }
+
   @Post('login')
   
   async login(
