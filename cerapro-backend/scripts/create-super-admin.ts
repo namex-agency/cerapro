@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { PrismaClient, UserRole, UserStatus } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
-
-const prisma = new PrismaClient();
+import { Pool } from 'pg';
 
 function getRequiredEnv(name: string) {
   const value = process.env[name];
@@ -13,6 +13,16 @@ function getRequiredEnv(name: string) {
 
   return value.trim();
 }
+
+const pool = new Pool({
+  connectionString: getRequiredEnv('DATABASE_URL'),
+});
+
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function main() {
   const phone = getRequiredEnv('SUPER_ADMIN_PHONE');
@@ -26,31 +36,48 @@ async function main() {
 
   const passwordHash = await bcrypt.hash(password, 12);
 
-  const existingAdmin = await prisma.user.findUnique({
+  const existingUser = await prisma.user.findUnique({
     where: {
       phone,
     },
   });
 
-  if (existingAdmin) {
-    if (existingAdmin.role !== UserRole.SUPER_ADMIN) {
-      await prisma.user.update({
-        where: {
-          id: existingAdmin.id,
-        },
-        data: {
-          role: UserRole.SUPER_ADMIN,
-          status: UserStatus.ACTIVE,
-          passwordHash,
-          phoneVerifiedAt: existingAdmin.phoneVerifiedAt ?? new Date(),
-        },
-      });
+  if (existingUser) {
+    const updatedAdmin = await prisma.user.update({
+      where: {
+        id: existingUser.id,
+      },
+      data: {
+        role: UserRole.SUPER_ADMIN,
+        status: UserStatus.ACTIVE,
+        passwordHash,
+        isKycVerified: true,
+        phoneVerifiedAt: existingUser.phoneVerifiedAt ?? new Date(),
+      },
+      select: {
+        id: true,
+        phone: true,
+        role: true,
+        status: true,
+      },
+    });
 
-      console.log('Utilisateur existant promu SUPER_ADMIN.');
-      return;
-    }
+    await prisma.auditLog.create({
+      data: {
+        userId: updatedAdmin.id,
+        action: 'BOOTSTRAP_SUPER_ADMIN_SYNCED',
+        entity: 'User',
+        entityId: updatedAdmin.id,
+        metadata: {
+          phone: updatedAdmin.phone,
+          role: updatedAdmin.role,
+          syncedAt: new Date().toISOString(),
+        },
+      },
+    });
 
-    console.log('SUPER_ADMIN déjà existant. Aucune création nécessaire.');
+    console.log('SUPER_ADMIN synchronisé avec succès.');
+    console.log(updatedAdmin);
     return;
   }
 
@@ -93,12 +120,7 @@ async function main() {
   });
 
   console.log('SUPER_ADMIN créé avec succès.');
-  console.log({
-    id: admin.id,
-    phone: admin.phone,
-    role: admin.role,
-    status: admin.status,
-  });
+  console.log(admin);
 }
 
 main()
@@ -108,4 +130,5 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
+    await pool.end();
   });
