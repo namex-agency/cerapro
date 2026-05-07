@@ -68,15 +68,20 @@ export default function KycManagement() {
   const [kycProfiles, setKycProfiles] = useState<AdminKycProfile[]>([]);
   const [selectedKyc, setSelectedKyc] = useState<AdminKycProfile | null>(null);
 
-  async function loadKycProfiles() {
+   async function loadKycProfiles() {
     try {
       setIsLoading(true);
       setErrorMessage("");
 
       const response = await getAdminKycProfiles();
 
-      setKycProfiles(response.data);
-    } catch {
+      const safeKycProfiles = Array.isArray(response?.data)
+        ? response.data.filter((kyc) => kyc?.id && kyc?.user)
+        : [];
+
+      setKycProfiles(safeKycProfiles);
+    } catch (error) {
+      console.error("CERAPRO_ADMIN_KYC_LOAD_FAILED", error);
       setErrorMessage("Impossible de charger les dossiers KYC.");
     } finally {
       setIsLoading(false);
