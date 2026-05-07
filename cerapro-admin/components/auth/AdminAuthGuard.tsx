@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
+import { AdminLayout } from "@/components/layout/AdminLayout";
+
 export default function AdminAuthGuard({
   children,
 }: {
@@ -11,10 +13,11 @@ export default function AdminAuthGuard({
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const pathname = usePathname();
 
-  useEffect(() => {
-    const publicRoutes = ["/admin-login"];
+  const publicRoutes = ["/admin-login"];
+  const isPublicRoute = publicRoutes.includes(pathname);
 
-    if (publicRoutes.includes(pathname)) {
+  useEffect(() => {
+    if (isPublicRoute) {
       setIsCheckingSession(false);
       return;
     }
@@ -27,7 +30,7 @@ export default function AdminAuthGuard({
     }
 
     setIsCheckingSession(false);
-  }, [pathname]);
+  }, [isPublicRoute]);
 
   if (isCheckingSession) {
     return (
@@ -49,5 +52,9 @@ export default function AdminAuthGuard({
     );
   }
 
-  return <>{children}</>;
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
+
+  return <AdminLayout>{children}</AdminLayout>;
 }

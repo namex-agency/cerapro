@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { AdminLayout } from "@/components/layout/AdminLayout";
 import AdminAuthGuard from "@/components/auth/AdminAuthGuard";
 
 export const metadata: Metadata = {
@@ -16,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
-        <AdminAuthGuard>
-    <AdminLayout>{children}</AdminLayout>
-  </AdminAuthGuard>
+        <AdminAuthGuard>{children}</AdminAuthGuard>
       </body>
     </html>
   );
