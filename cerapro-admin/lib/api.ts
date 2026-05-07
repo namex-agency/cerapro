@@ -134,7 +134,16 @@ export async function createAdminNotification(data: {
  * KYC API — ADMIN
  */
 export async function getAdminKycProfiles() {
-  return apiRequest<ApiResponse<any[]>>("/kyc/admin");
+  const response = await apiRequest<ApiResponse<any[]> | any[]>("/kyc/admin");
+
+  if (Array.isArray(response)) {
+    return {
+      success: true,
+      data: response,
+    };
+  }
+
+  return response;
 }
 
 export async function approveAdminKyc(userId: string) {
