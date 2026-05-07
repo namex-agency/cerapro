@@ -54,6 +54,15 @@ export class KycService {
   }
 
   async updateMyKyc(userId: string, payload: UpdateKycPayload) {
+        console.log('CERAPRO_KYC_SUBMISSION_RECEIVED', {
+      userId,
+      hasCountry: !!payload.country,
+      hasSelfie: !!payload.selfieUrl,
+      hasCniFront: !!payload.cniFrontUrl,
+      hasCniBack: !!payload.cniBackUrl,
+      receivedAt: new Date().toISOString(),
+    });
+    
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true },
