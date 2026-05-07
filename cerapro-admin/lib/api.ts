@@ -38,14 +38,18 @@ export async function apiRequest<T>(
       throw new Error("Token admin manquant.");
     }
 
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: options.method ?? "GET",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${adminToken}`,
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined,
-    });
+   const response = await fetch(`${API_BASE_URL}${path}`, {
+  method: options.method ?? "GET",
+
+  cache: "no-store",
+
+  headers: {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${adminToken}`,
+  },
+
+  body: options.body ? JSON.stringify(options.body) : undefined,
+});
 
     const text = await response.text();
     const data = text ? JSON.parse(text) : null;
