@@ -125,7 +125,15 @@ export class KycService {
   }
 
   async getAdminKycProfiles() {
-    const kycProfiles = await this.prisma.kycProfile.findMany({
+       const kycProfiles = await this.prisma.kycProfile.findMany({
+      where: {
+        submittedAt: {
+          not: null,
+        },
+        user: {
+          role: 'LONGRICHEUR',
+        },
+      },
       orderBy: {
         submittedAt: 'desc',
       },
