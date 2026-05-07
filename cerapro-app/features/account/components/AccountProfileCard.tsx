@@ -6,6 +6,7 @@ import { colors } from '@/shared/theme/colors';
 type Props = {
   fullName: string;
   phone: string;
+  country?: string;
   isKycComplete: boolean;
   onPressChangePhoto?: () => void;
 };
@@ -13,6 +14,7 @@ type Props = {
 export function AccountProfileCard({
   fullName,
   phone,
+  country,
   isKycComplete,
   onPressChangePhoto,
 }: Props) {
@@ -40,13 +42,17 @@ export function AccountProfileCard({
       <Text style={styles.name}>{fullName}</Text>
       <Text style={styles.phone}>{phone}</Text>
 
+      {country ? (
+  <Text style={styles.country}>{country}</Text>
+) : null}
+
       <View
         style={[
           styles.statusBadge,
           {
             backgroundColor: isKycComplete
-              ? colors.primaryLight
-              : colors.primaryLight,
+  ? colors.primaryLight
+  : '#FFF0F0',
           },
         ]}
       >
@@ -75,6 +81,13 @@ const styles = StyleSheet.create({
   avatarWrapper: {
     marginBottom: 16,
   },
+
+  country: {
+  marginTop: 2,
+  fontSize: 13,
+  color: colors.textMuted,
+  fontWeight: '600',
+},
 
   avatar: {
     width: 110,

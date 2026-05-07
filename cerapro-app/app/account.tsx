@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Bell,
   ChevronLeft,
@@ -8,70 +9,117 @@ import {
 } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 
 import { AccountKycBadge } from '@/features/account/components/AccountKycBadge';
 import { AccountPreferenceRow } from '@/features/account/components/AccountPreferenceRow';
 import { AccountProfileCard } from '@/features/account/components/AccountProfileCard';
 import { AccountSecurityRow } from '@/features/account/components/AccountSecurityRow';
 import { AccountSubscriptionCard } from '@/features/account/components/AccountSubscriptionCard';
-import * as ImagePicker from 'expo-image-picker';
+import { getMe } from '@/shared/api/client';
 import { colors } from '@/shared/theme/colors';
+
+type SubscriptionCardStatus = 'TRIAL' | 'ACTIVE' | 'EXPIRED';
+
+type AccountUser = {
+  fullName?: string;
+  phone?: string;
+  country?: string;
+  isKycVerified?: boolean;
+  subscription?: {
+    status?: string;
+    startsAt?: string;
+    endsAt?: string;
+    trialEndsAt?: string;
+  } | null;
+};
+
+function formatDate(value?: string | null) {
+  if (!value) return '—';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function calculateSubscriptionProgress(start?: string, end?: string | null) {
+  if (!start || !end) return 0;
+
+  const startDate = new Date(start).getTime();
+  const endDate = new Date(end).getTime();
+  const now = Date.now();
+
+  if (
+    Number.isNaN(startDate) ||
+    Number.isNaN(endDate) ||
+    endDate <= startDate
+  ) {
+    return 0;
+  }
+
+  const progress = ((now - startDate) / (endDate - startDate)) * 100;
+
+  return Math.min(100, Math.max(0, Math.round(progress)));
+}
 
 export default function AccountScreen() {
   const router = useRouter();
+  const [user, setUser] = useState<AccountUser | null>(null);
 
- const handleChangePhoto = async () => {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  useEffect(() => {
+    async function loadUser() {
+      try {
+        const data = await getMe();
+        setUser(data);
+      } catch (error) {
+        console.log('Erreur getMe account:', error);
+      }
+    }
 
-  if (!permission.granted) {
-    alert('Permission refusée pour accéder à la galerie');
-    return;
-  }
+    loadUser();
+  }, []);
 
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ImagePicker.MediaTypeOptions.Images,
-    allowsEditing: true,
-    aspect: [1, 1],
-    quality: 0.7,
-  });
+  const subscriptionEndDate =
+    user?.subscription?.endsAt ?? user?.subscription?.trialEndsAt ?? null;
 
-  if (!result.canceled) {
-    const image = result.assets[0].uri;
+  const subscriptionStatus: SubscriptionCardStatus =
+    user?.subscription?.status === 'TRIALING'
+      ? 'TRIAL'
+      : user?.subscription?.status === 'ACTIVE'
+        ? 'ACTIVE'
+        : 'EXPIRED';
 
-    console.log('Image sélectionnée :', image);
+  const subscriptionProgress = calculateSubscriptionProgress(
+    user?.subscription?.startsAt,
+    subscriptionEndDate,
+  );
 
-    // Étape suivante (plus tard) :
-    // → upload backend
-    // → mise à jour avatar global
-  }
-};
+  const handleChangePhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-const handleKycPress = () => {
-  router.push('/account-kyc');
-};
+    if (!permission.granted) {
+      alert('Permission refusée pour accéder à la galerie');
+      return;
+    }
 
-const handleSubscriptionPress = () => {
-  router.push('/account-subscription');
-};
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
 
- const handleLanguagePress = () => {
-  router.push('/account-language');
-};
- const handleThemePress = () => {
-  router.push('/account-theme');
-};
-
-  const handleNotificationPress = () => {
-  router.push('/account-notifications');
-};
-
- const handlePasswordPress = () => {
-  router.push('/account-password');
-};
-
- const handlePhoneSecurityPress = () => {
-  router.push('/account-phone');
-};
+    if (!result.canceled) {
+      const image = result.assets[0].uri;
+      console.log('Image sélectionnée :', image);
+    }
+  };
 
   return (
     <>
@@ -86,23 +134,24 @@ const handleSubscriptionPress = () => {
         </Pressable>
 
         <AccountProfileCard
-          fullName="Eric Namo"
-          phone="+237 6XX XXX XXX"
-          isKycComplete={false}
-          onPressChangePhoto={handleChangePhoto}
-        />
+  fullName={user?.fullName || 'Longricheur'}
+  phone={user?.phone || '—'}
+  country={user?.country || 'Cameroun'}
+  isKycComplete={user?.isKycVerified ?? false}
+  onPressChangePhoto={handleChangePhoto}
+/>
 
         <AccountKycBadge
-          isKycComplete={false}
-          onPress={handleKycPress}
+          isKycComplete={user?.isKycVerified ?? false}
+          onPress={() => router.push('/account-kyc')}
         />
 
         <AccountSubscriptionCard
-          status="ACTIVE"
-          startDate="01 Avr 2026"
-          endDate="30 Avr 2026"
-          progress={80}
-          onPress={handleSubscriptionPress}
+          status={subscriptionStatus}
+          startDate={formatDate(user?.subscription?.startsAt)}
+          endDate={formatDate(subscriptionEndDate)}
+          progress={subscriptionProgress}
+          onPress={() => router.push('/account-subscription')}
         />
 
         <View style={styles.section}>
@@ -112,21 +161,21 @@ const handleSubscriptionPress = () => {
             icon={<Globe2 size={22} color={colors.primaryDark} />}
             title="Langue"
             value="Français"
-            onPress={handleLanguagePress}
+            onPress={() => router.push('/account-language')}
           />
 
           <AccountPreferenceRow
             icon={<Moon size={22} color={colors.primaryDark} />}
             title="Thème"
             value="Clair"
-            onPress={handleThemePress}
+            onPress={() => router.push('/account-theme')}
           />
 
           <AccountPreferenceRow
             icon={<Bell size={22} color={colors.primaryDark} />}
             title="Notifications"
             value="Activées"
-            onPress={handleNotificationPress}
+            onPress={() => router.push('/account-notifications')}
           />
         </View>
 
@@ -137,14 +186,14 @@ const handleSubscriptionPress = () => {
             icon={<LockKeyhole size={22} color={colors.primaryDark} />}
             title="Mot de passe"
             value="Modifier"
-            onPress={handlePasswordPress}
+            onPress={() => router.push('/account-password')}
           />
 
           <AccountSecurityRow
             icon={<Smartphone size={22} color={colors.primaryDark} />}
             title="Téléphone"
-            value="+237 6XX XXX XXX"
-            onPress={handlePhoneSecurityPress}
+            value={user?.phone || '—'}
+            onPress={() => router.push('/account-phone')}
           />
         </View>
       </ScrollView>

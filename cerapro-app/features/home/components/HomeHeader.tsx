@@ -4,12 +4,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '@/shared/theme/colors';
 
 type Props = {
+  userName: string;
+  kycLabel?: string;
   onPressProfile?: () => void;
   onPressNotifications?: () => void;
   unreadNotificationsCount?: number;
 };
 
 export function HomeHeader({
+  userName,
+  kycLabel = 'Mise à jour KYC',
   onPressProfile,
   onPressNotifications,
   unreadNotificationsCount = 0,
@@ -33,10 +37,12 @@ export function HomeHeader({
         <User size={28} color={colors.primaryDark} strokeWidth={2.2} />
 
         <View style={styles.profileTextArea}>
-          <Text style={styles.userName}>Eric Namo</Text>
+          <Text style={styles.userName} numberOfLines={1}>
+            {userName || 'Longricheur'}
+          </Text>
 
           <View style={styles.kycBadge}>
-            <Text style={styles.kycText}>Mise à jour KYC</Text>
+            <Text style={styles.kycText}>{kycLabel}</Text>
           </View>
         </View>
       </Pressable>
@@ -76,12 +82,15 @@ const styles = StyleSheet.create({
   },
 
   profileArea: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
+    paddingRight: 16,
   },
 
   profileTextArea: {
+    flex: 1,
     justifyContent: 'center',
   },
 
@@ -96,7 +105,7 @@ const styles = StyleSheet.create({
   kycBadge: {
     marginTop: 6,
     alignSelf: 'flex-start',
-    backgroundColor: colors.primaryLight,
+    backgroundColor: '#FDECEC',
     paddingHorizontal: 13,
     paddingVertical: 5,
     borderRadius: 999,
@@ -104,8 +113,8 @@ const styles = StyleSheet.create({
 
   kycText: {
     fontSize: 12,
-    fontWeight: '700',
-    color: colors.primaryDark,
+    fontWeight: '800',
+    color: colors.danger,
   },
 
   notificationArea: {

@@ -1,13 +1,18 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const API_URL = 'https://cerapro-production.up.railway.app';
 
 // BASE FETCH WRAPPER
 async function apiFetch(endpoint: string, options?: RequestInit) {
+  const token = await AsyncStorage.getItem('cerapro_access_token');
+
   const response = await fetch(`${API_URL}${endpoint}`, {
+    ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers || {}),
     },
-    ...options,
   });
 
   if (!response.ok) {
@@ -114,6 +119,33 @@ export async function requestPasswordReset(payload: RequestPasswordResetPayload)
 export async function resetPassword(payload: ResetPasswordPayload) {
   return apiFetch('/auth/reset-password', {
     method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+// ==========================
+// KYC
+// ==========================
+
+export async function getMyKyc() {
+  return apiFetch('/kyc');
+}
+
+export async function updateMyKyc(payload: {
+  fullName?: string;
+  phone?: string;
+  birthDate?: string;
+  birthPlace?: string;
+  placeName?: string;
+  district?: string;
+  city?: string;
+  country?: string;
+  selfieUrl?: string;
+  cniFrontUrl?: string;
+  cniBackUrl?: string;
+}) {
+  return apiFetch('/kyc', {
+    method: 'PATCH',
     body: JSON.stringify(payload),
   });
 }

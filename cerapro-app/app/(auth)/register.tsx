@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -7,7 +7,7 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthPasswordField } from '@/features/auth/register/components/AuthPasswordField';
 import { FullNameField } from '@/features/auth/register/components/FullNameField';
 import { LoginRedirectLink } from '@/features/auth/register/components/LoginRedirectLink';
@@ -82,13 +82,17 @@ if (!canSubmit || loading) {
 
     try {
       await registerLongricheur({
-        fullName: cleanFullName,
-        phone: cleanPhone,
-        country: 'Cameroun',
-        password,
-      });
+  fullName: cleanFullName,
+  phone: cleanPhone,
+  country: 'Cameroun',
+  password,
+});
 
-      setSuccessVisible(true);
+// On sauvegarde le téléphone pour le login
+await AsyncStorage.setItem('cerapro_phone_prefill', cleanPhone);
+
+// On affiche succès
+setSuccessVisible(true);
     } catch (error) {
       Alert.alert(
         'Inscription impossible',

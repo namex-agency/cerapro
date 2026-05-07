@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AdminLayout } from "@/components/layout/AdminLayout";
+import AdminAuthGuard from "@/components/auth/AdminAuthGuard";
 
 export const metadata: Metadata = {
   title: "CERAPRO Admin",
@@ -15,7 +16,9 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body>
-        <AdminLayout>{children}</AdminLayout>
+        <AdminAuthGuard>
+    <AdminLayout>{children}</AdminLayout>
+  </AdminAuthGuard>
       </body>
     </html>
   );

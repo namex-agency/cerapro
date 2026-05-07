@@ -1,6 +1,6 @@
 import { ChevronLeft, Eye, EyeOff, LockKeyhole } from 'lucide-react-native';
 import { Stack, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { colors } from '@/shared/theme/colors';

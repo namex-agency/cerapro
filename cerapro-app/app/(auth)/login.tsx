@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -23,8 +24,23 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    async function loadPrefilledPhone() {
+      const savedPhone = await AsyncStorage.getItem('cerapro_phone_prefill');
+
+      if (savedPhone) {
+        setPhone(savedPhone);
+      }
+    }
+
+    loadPrefilledPhone();
+  }, []);
+
   async function handleLogin() {
-    if (!phone.trim() || !password.trim()) {
+    const cleanPhone = phone.replace(/\s+/g, '').trim();
+    const cleanPassword = password.trim();
+
+    if (!cleanPhone || !cleanPassword) {
       Alert.alert(
         'Champs obligatoires',
         'Merci de remplir le numéro WhatsApp et le mot de passe.',
@@ -39,8 +55,8 @@ export default function LoginScreen() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: phone.trim(),
-          password,
+          phone: cleanPhone,
+          password: cleanPassword,
         }),
       });
 
@@ -50,13 +66,29 @@ export default function LoginScreen() {
         throw new Error(result?.message || 'Connexion impossible.');
       }
 
-    const access = result?.data?.access;
+      const accessToken = result?.data?.accessToken;
+      const user = result?.data?.user;
+      const access = result?.data?.access;
 
-if (access?.mustChooseSubscription) {
-  router.replace('/(auth)/subscription-choice');
-} else {
-  router.replace('/(tabs)');
-}
+      if (!accessToken || !user?.id) {
+        throw new Error('Session invalide. Merci de vous reconnecter.');
+      }
+
+      await AsyncStorage.multiSet([
+        ['cerapro_access_token', accessToken],
+        ['cerapro_user', JSON.stringify(user)],
+        ['cerapro_user_id', user.id],
+        ['cerapro_phone', cleanPhone],
+      ]);
+
+      await AsyncStorage.removeItem('cerapro_phone_prefill');
+
+      if (access?.mustChooseSubscription) {
+        router.replace('/(auth)/subscription-choice');
+        return;
+      }
+
+      router.replace('/(tabs)');
     } catch (error) {
       Alert.alert(
         'Erreur',
@@ -81,7 +113,6 @@ if (access?.mustChooseSubscription) {
         bounces={false}
       >
         <View style={styles.content}>
-          {/* MAIN */}
           <View style={styles.mainContent}>
             <Text style={styles.logo}>CERAPRO</Text>
 
@@ -99,6 +130,8 @@ if (access?.mustChooseSubscription) {
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
+                autoCapitalize="none"
+                autoCorrect={false}
               />
 
               <TextInput
@@ -108,16 +141,16 @@ if (access?.mustChooseSubscription) {
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
               />
 
-              {/* MOT DE PASSE OUBLIÉ */}
               <Pressable onPress={() => router.push('./forgot-password')}>
                 <Text style={styles.forgotPassword}>
                   Mot de passe oublié ?
                 </Text>
               </Pressable>
 
-              {/* BOUTON */}
               <Pressable
                 style={[styles.button, loading && styles.buttonDisabled]}
                 onPress={handleLogin}
@@ -130,7 +163,6 @@ if (access?.mustChooseSubscription) {
                 )}
               </Pressable>
 
-              {/* REGISTER */}
               <Pressable onPress={() => router.push('./register')}>
                 <Text style={styles.secondaryLink}>
                   Créer un compte Longricheur
@@ -139,7 +171,6 @@ if (access?.mustChooseSubscription) {
             </View>
           </View>
 
-          {/* FOOTER */}
           <RegisterFooter />
         </View>
       </ScrollView>
@@ -201,11 +232,11 @@ const styles = StyleSheet.create({
     marginBottom: 34,
   },
 
-form: {
-  gap: 16,
-  marginTop: 10,
-  marginBottom: 20,
-},
+  form: {
+    gap: 16,
+    marginTop: 10,
+    marginBottom: 20,
+  },
 
   input: {
     minHeight: 62,
@@ -249,12 +280,12 @@ form: {
   },
 
   secondaryLink: {
-  color: colors.primary,
-  fontSize: 15,
-  fontWeight: '900',
-  textAlign: 'center',
-  marginTop: 10,
-  marginBottom: 10,
-  textDecorationLine: 'underline',
-},
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+    textDecorationLine: 'underline',
+  },
 });
