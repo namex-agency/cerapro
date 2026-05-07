@@ -54,7 +54,7 @@ export default function AdminLoginPage() {
       localStorage.setItem("cerapro_admin_token", accessToken);
       localStorage.setItem("cerapro_admin_user", JSON.stringify(user));
 
-      window.location.href = "/kyc";
+      window.location.href = "/";
     } catch (error) {
       setErrorMessage(
         error instanceof Error
